@@ -95,7 +95,7 @@
 类型: Skill
 来源: ECC
 状态: 🟢 活跃
-路径: C:\Users\Altolia\.claude\skills\investigate
+路径: ~/.claude/skills/investigate
 
 ═══ 描述 ═══
 系统调试技能，四阶段方法论：调查、分析、假设、实施。

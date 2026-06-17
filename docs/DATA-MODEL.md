@@ -76,7 +76,7 @@ class Item:
     "name": "investigate",
     "source": "ecc",
     "status": "active",
-    "paths": ["C:\\Users\\Altolia\\.claude\\skills\\investigate"],
+    "paths": ["~/.claude/skills/investigate"],
     "description": "系统调试技能，四阶段方法论",
     "content_preview": "---\nname: investigate\n..."
 }
@@ -88,7 +88,7 @@ class Item:
     "name": "java/testing",
     "source": "ecc",
     "status": "active",
-    "paths": ["C:\\Users\\Altolia\\.claude\\rules\\java\\testing.md"],
+    "paths": ["~/.claude/rules/java/testing.md"],
     "description": "Java 测试最佳实践...",
     "content_preview": "# Java 测试规则\n..."
 }
@@ -142,7 +142,7 @@ class Item:
 {
   "plugins": {
     "superpowers@claude-plugins-official": [{
-      "installPath": "C:\\Users\\...\\plugins\\cache\\...\\superpowers\\5.1.0"
+      "installPath": "~/.claude/plugins/cache/.../superpowers/5.1.0"
     }]
   }
 }
