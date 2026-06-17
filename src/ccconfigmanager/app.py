@@ -7,14 +7,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from scanner import Scanner
-from source_detector import SourceDetector
-from mover import Mover
-import mcp_tools
-import packs
-import projects
+from .scanner import Scanner
+from .source_detector import SourceDetector
+from .mover import Mover
+from . import mcp_tools
+from . import packs
+from . import projects
 
 CLAUDE_DIR = os.path.expanduser("~/.claude")
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 detector = SourceDetector(CLAUDE_DIR)
 scanner = Scanner(CLAUDE_DIR, detector)
@@ -34,7 +35,7 @@ app.add_middleware(
 
 @app.get("/")
 def index():
-    return FileResponse("static/index.html")
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
 @app.get("/api/types")
@@ -294,7 +295,7 @@ def copy_to_project(body: dict):
         return {"success": False, "message": str(e)}
 
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 def main():

@@ -1,5 +1,5 @@
 [project]
-name = "claude-project-manager"
+name = "ccconfigmanager"
 version = "1.0.0"
 description = "Claude Code config manager - browse, search, edit, and organize Skills, Agents, Commands, Rules, MCP, Tools, and Workflows"
 readme = "README.md"
@@ -10,8 +10,11 @@ dependencies = [
 ]
 
 [project.scripts]
-claude-pm = "app:main"
+ccpm = "ccconfigmanager.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"

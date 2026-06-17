@@ -9,3 +9,4 @@ Thumbs.db
 .claude/
 bash.exe.stackdump
 venv/
+*.zip

@@ -10,8 +10,8 @@ Web-based Claude Code config manager for `~/.claude/`. Browse, search, edit, mov
 
 ```bash
 pip install -r requirements.txt
-python app.py            # → http://127.0.0.1:8900
-PORT=9000 python app.py  # override port
+python -m ccconfigmanager  # → http://127.0.0.1:8900
+PORT=9000 python -m ccconfigmanager  # override port
 ```
 
 Windows: `setup.bat` → `start.bat`. macOS/Linux: `./setup.sh` → `./start.sh`.
@@ -19,14 +19,17 @@ Windows: `setup.bat` → `start.bat`. macOS/Linux: `./setup.sh` → `./start.sh`
 ## Architecture
 
 ```
-app.py              # FastAPI + CORS + all routes + static mount + main()
-scanner.py          # Walk ~/.claude/ + plugins + projects, recursive rules
-source_detector.py  # Five-layer: .source → plugins → install-state → git → content marker
-mover.py            # shutil.move() + .source sync + ~/.claude/skills-manager.log
-mcp_tools.py        # Connect MCP servers, discover tools via JSON-RPC, cache to .tools-cache.json
-projects.py         # Project CRUD in ~/.claude/project-manager/projects.json
-packs.py            # Curated packs in ~/.claude/project-manager/packs.json
-static/index.html   # Single-file frontend — HTML + CSS + vanilla JS, zero build tools
+src/ccconfigmanager/
+├── __init__.py
+├── __main__.py       # python -m ccconfigmanager
+├── app.py            # FastAPI + CORS + all routes + static mount + main()
+├── scanner.py        # Walk ~/.claude/ + plugins + projects, recursive rules
+├── source_detector.py # Five-layer: .source → plugins → install-state → git → content
+├── mover.py          # shutil.move() + .source sync + skills-manager.log
+├── mcp_tools.py      # MCP tool discovery via JSON-RPC, cache to .tools-cache.json
+├── projects.py       # Project CRUD in ~/.claude/project-manager/projects.json
+├── packs.py          # Curated packs in ~/.claude/project-manager/packs.json
+└── static/index.html # Single-file frontend — HTML + CSS + vanilla JS
 ```
 
 ## API endpoints

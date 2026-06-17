@@ -3,8 +3,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import mcp_tools
-from source_detector import SourceDetector
+from . import mcp_tools
+from .source_detector import SourceDetector
 
 
 @dataclass
