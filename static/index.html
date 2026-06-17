@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Manager</title>
+<style>
+:root {
+    --color-ecc: #7c3aed;
+    --color-gstack: #059669;
+    --color-superpowers: #2563eb;
+    --color-standalone: #6b7280;
+    --color-unknown: #ea580c;
+    --color-example-skills: #0891b2;
+    --color-claude-mem: #9333ea;
+    --color-active: #16a34a;
+    --color-archived: #dc2626;
+    --bg: #ffffff;
+    --bg-secondary: #f9fafb;
+    --bg-hover: #f3f4f6;
+    --bg-selected: #eff6ff;
+    --text: #111827;
+    --text-secondary: #6b7280;
+    --border: #e5e7eb;
+    --radius: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text); background: var(--bg-secondary);
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* Top bar */
+.topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.search-wrap { flex: 1; position: relative; max-width: 560px; }
+.search-wrap input {
+    width: 100%; padding: 8px 12px 8px 32px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: 14px; outline: none;
+    background: var(--bg-secondary); transition: border-color .15s, box-shadow .15s;
+}
+.search-wrap input:focus {
+    border-color: var(--color-superpowers); background: var(--bg); box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+.search-wrap .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 13px; }
+.topbar .hint { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+
+/* Main area */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* Left nav */
+.sidebar {
+    width: 200px; min-width: 200px; background: var(--bg);
+    border-right: 1px solid var(--border); overflow-y: auto;
+    padding: 12px; display: flex; flex-direction: column; gap: 14px;
+}
+.sidebar h3 { font-size: 11px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: .5px; }
+.sidebar .type-list { display: flex; flex-direction: column; gap: 2px; }
+.sidebar .type-item {
+    display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+    border-radius: 6px; cursor: pointer; font-size: 13px; transition: background .12s;
+    border: none; background: none; width: 100%; text-align: left; color: var(--text); font-family: inherit;
+}
+.sidebar .type-item:hover { background: var(--bg-hover); }
+.sidebar .type-item.active { background: var(--bg-selected); color: var(--color-superpowers); font-weight: 600; }
+.sidebar .type-item .count { margin-left: auto; font-size: 11px; color: var(--text-secondary); }
+.sidebar .type-item .count .ac { color: var(--color-active); }
+.sidebar .type-item .count .ar { color: var(--color-archived); margin-left: 2px; }
+.sidebar .filters { display: flex; flex-direction: column; gap: 6px; }
+.sidebar .filter-group { display: flex; flex-direction: column; gap: 3px; }
+.sidebar .filter-group label {
+    font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;
+    padding: 2px 4px; border-radius: 4px; transition: background .1s;
+}
+.sidebar .filter-group label:hover { background: var(--bg-hover); }
+.sidebar .filter-group input[type=checkbox] { accent-color: var(--color-superpowers); }
+
+/* Middle list */
+.list-panel { width: 350px; min-width: 350px; border-right: 1px solid var(--border); background: var(--bg); overflow-y: auto; }
+.list-panel .list-item {
+    padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer;
+    transition: background .1s; display: flex; flex-direction: column; gap: 4px;
+}
+.list-panel .list-item:hover { background: var(--bg-hover); }
+.list-panel .list-item.selected {
+    background: var(--bg-selected); border-left: 3px solid var(--color-superpowers); padding-left: 11px;
+}
+.list-panel .list-item .item-header { display: flex; align-items: center; gap: 8px; }
+.list-panel .list-item .item-name { font-size: 14px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list-panel .list-item .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.list-panel .list-item .status-dot.active { background: var(--color-active); }
+.list-panel .list-item .status-dot.archived { background: var(--color-archived); }
+.list-panel .list-item .item-desc { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.source-tag {
+    font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600;
+    white-space: nowrap; letter-spacing: .3px; flex-shrink: 0;
+}
+
+/* Right detail */
+.detail-panel { flex: 1; background: var(--bg); overflow-y: auto; padding: 24px; }
+.detail-panel .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; color: var(--text-secondary); font-size: 14px; gap: 8px;
+}
+.detail-panel .empty-state .empty-icon { font-size: 32px; opacity: .4; }
+.detail-section { margin-bottom: 20px; }
+.detail-section h3 { font-size: 11px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 6px; letter-spacing: .5px; }
+.detail-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 14px; }
+.detail-label { color: var(--text-secondary); min-width: 56px; font-size: 12px; }
+.detail-path { font-size: 12px; color: var(--text-secondary); font-family: "Cascadia Code", "Fira Code", monospace; word-break: break-all; background: var(--bg-secondary); padding: 8px; border-radius: 4px; }
+.preview-box { font-size: 12px; font-family: "Cascadia Code", "Fira Code", monospace; background: var(--bg-secondary); padding: 12px; border-radius: 4px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; color: var(--text-secondary); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+
+.btn {
+    padding: 8px 16px; border-radius: var(--radius); border: 1px solid var(--border);
+    font-size: 13px; cursor: pointer; background: var(--bg); transition: all .12s;
+    display: inline-flex; align-items: center; gap: 4px; font-family: inherit;
+}
+.btn:hover { background: var(--bg-hover); }
+.btn:focus-visible { outline: 2px solid var(--color-superpowers); outline-offset: 1px; }
+.btn.primary { background: var(--color-superpowers); color: white; border-color: var(--color-superpowers); }
+.btn.primary:hover { background: #1d4ed8; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Bottom bar */
+.statusbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 16px; background: var(--bg); border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--text-secondary); flex-shrink: 0;
+}
+.statusbar .warn { color: var(--color-unknown); font-weight: 600; }
+
+/* Spinner */
+.spinner {
+    width: 20px; height: 20px; border: 2px solid var(--border);
+    border-top-color: var(--color-superpowers); border-radius: 50%;
+    animation: spin .6s linear infinite; margin: 0 auto 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: var(--text-secondary); font-size: 13px; gap: 8px; }
+.empty, .error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: var(--text-secondary); font-size: 14px; gap: 8px; text-align: center; }
+.error-state { color: var(--color-archived); }
+
+/* Toast */
+.toast {
+    position: fixed; bottom: 48px; right: 24px; padding: 10px 20px;
+    border-radius: var(--radius); font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,.15);
+    z-index: 999; transform: translateY(80px); opacity: 0;
+    transition: transform .25s ease, opacity .25s ease; pointer-events: none;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { background: #065f46; color: #fff; }
+.toast.error { background: #991b1b; color: #fff; }
+
+/* Confirm dialog */
+.overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.3); display: flex;
+    align-items: center; justify-content: center; z-index: 100;
+    animation: fadeIn .15s;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.dialog { background: var(--bg); border-radius: 12px; padding: 24px; max-width: 380px; box-shadow: 0 16px 40px rgba(0,0,0,.2); }
+.dialog p { margin-bottom: 16px; font-size: 14px; line-height: 1.5; }
+.dialog .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+    <div class="search-wrap">
+        <span class="search-icon">&#x1F50D;</span>
+        <input id="search" type="text" placeholder="搜索..." aria-label="搜索配置项">
+    </div>
+    <span class="hint">Ctrl+K 搜索 &middot; Esc 清除</span>
+</header>
+
+<div class="main">
+    <nav class="sidebar" id="sidebar" aria-label="筛选导航"></nav>
+    <div class="list-panel" id="listPanel" role="listbox"><div class="loading"><div class="spinner"></div>加载中...</div></div>
+    <div class="detail-panel" id="detailPanel"><div class="empty-state"><div class="empty-icon">&#x2B07;</div>点击左侧列表中的项目查看详情</div></div>
+</div>
+
+<footer class="statusbar" id="statusbar"></footer>
+
+<div class="toast" id="toast" aria-live="polite"></div>
+
+<script>
+const API = '';
+const TYPES = [['skill','Skills'],['agent','Agents'],['command','Commands'],['rule','Rules'],['mcp','MCP'],['tool','Tools']];
+const WORKFLOW_MODES = [['auto','Auto 自动编排'],['step','Step 阶段门禁']];
+const SOURCES = [['ecc','ECC'],['gstack','Gstack'],['superpowers','Superpowers'],['claude-mem','Claude Mem'],['example-skills','Example'],['standalone','独立'],['unknown','未知']];
+const state = { type:'skill', source:'', status:'', search:'', selected:null, items:[], stats:null, timer:null, projects:{}, project:'', packs:{}, pack:'', wfMode:'' };
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+async function fetchJSON(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(String(r.status));
+    return r.json();
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+const SOURCE_COLORS = ['#7c3aed','#059669','#2563eb','#ea580c','#0891b2','#9333ea','#c2410c','#4f46e5','#0d9488','#b91c1c','#1e40af','#a21caf'];
+const SOURCE_BG = ['#ede9fe','#d1fae5','#dbeafe','#fff7ed','#cffafe','#f3e8ff','#fff1f2','#eef2ff','#ccfbf1','#fef2f2','#dbeafe','#fae8ff'];
+function sourceStyle(source) {
+    let h = 0;
+    for (let i = 0; i < source.length; i++) h = ((h << 5) - h) + source.charCodeAt(i);
+    const idx = Math.abs(h) % SOURCE_COLORS.length;
+    return `background:${SOURCE_BG[idx]};color:${SOURCE_COLORS[idx]}`;
+}
+function applySourceStyles() {
+    [...document.querySelectorAll('.source-tag')].forEach(el => {
+        const src = el.className.replace('source-tag','').trim();
+        el.setAttribute('style', sourceStyle(src));
+    });
+}
+function esc_attr(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc_js(s) { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n'); }
+
+// --- Sidebar ---
+function renderSidebar() {
+    if (!state.stats) return;
+    let h = '<h3>配置类型</h3><div class="type-list">';
+    TYPES.forEach(([k,label]) => {
+        const st = state.stats[k] || {};
+        const ac = st.active||0, ar = st.archived||0;
+        h += `<button class="type-item${state.type===k?' active':''}" data-type="${k}">${label}<span class="count"><span class="ac">${ac}</span>${ar?`<span class="ar">/${ar}</span>`:''}</span></button>`;
+    });
+    // Workflows with dropdown sub-modes
+    const wf = state.stats['workflow'] || {};
+    const wfTotal = (wf.active||0)+(wf.archived||0);
+    h += `<button class="type-item${state.type==='workflow' && !state.wfMode?' active':''}" data-type="workflow">Workflows<span class="count">${wfTotal}</span></button>`;
+    WORKFLOW_MODES.forEach(([mode,label]) => {
+        h += `<button class="type-item${state.type==='workflow' && state.wfMode===mode?' active':''}" data-wfmode="${mode}" style="padding-left:24px;font-size:12px">${label}</button>`;
+    });
+    h += '</div><h3>来源筛选</h3><div class="filters"><div class="filter-group">';
+    SOURCES.forEach(([k,label]) => {
+        h += `<label><input type="checkbox" class="source-filter" value="${k}"${state.source===k?' checked':''}> <span class="source-tag ${k}">${label}</span></label>`;
+    });
+    h += '</div></div><h3>状态筛选</h3><div class="filters"><div class="filter-group">';
+    [['active','活跃'],['archived','隔离']].forEach(([k,label]) => {
+        h += `<label><input type="checkbox" class="status-filter" value="${k}"${state.status===k?' checked':''}> ${label}</label>`;
+    });
+    h += '</div></div>';
+    // Projects section
+    h += '<h3 style="margin-top:4px">项目</h3><div class="type-list" id="projectList">';
+    Object.entries(state.projects).forEach(([name, proj]) => {
+        const total = (proj.skills||[]).length + (proj.agents||[]).length + (proj.commands||[]).length + (proj.rules||[]).length;
+        h += `<button class="type-item${state.project===name?' active':''}" data-project="${esc_attr(name)}">${esc(name)}<span class="count">${total}</span></button>`;
+    });
+    h += '</div><button class="type-item" style="color:var(--color-superpowers);font-size:12px" onclick="newProject()">+ 新建项目</button>';
+    // Packs section
+    h += '<h3 style="margin-top:8px">配置包</h3><div class="type-list">';
+    Object.entries(state.packs).forEach(([name, pack]) => {
+        const total = (pack.skills||[]).length + (pack.agents||[]).length + (pack.commands||[]).length + (pack.rules||[]).length;
+        h += `<button class="type-item${state.pack===name?' active':''}" data-pack="${esc_attr(name)}">📦 ${esc(name)}<span class="count">${total}</span></button>`;
+    });
+    h += '</div><button class="type-item" style="color:var(--color-superpowers);font-size:12px" onclick="newPack()">+ 新建配置包</button>';
+    $('#sidebar').innerHTML = h;
+    applySourceStyles();
+
+    // Bind project type-item click handlers (skip the "新建项目" button which has no data-type or data-project)
+    $$('.type-item').forEach(b => {
+        if (b.dataset.wfmode) {
+            b.onclick = () => { state.type = 'workflow'; state.wfMode = b.dataset.wfmode; state.source = ''; state.project = ''; state.pack = ''; state.selected = null; renderSidebar(); loadItems(); };
+        } else if (b.dataset.type) {
+            b.onclick = () => { state.type = b.dataset.type; state.wfMode = ''; state.project = ''; state.pack = ''; state.selected = null; renderSidebar(); loadItems(); };
+        } else if (b.dataset.project) {
+            b.onclick = () => { state.project = b.dataset.project; state.type = ''; state.pack = ''; state.selected = null; renderSidebar(); loadProjectItems(); };
+        } else if (b.dataset.pack) {
+            b.onclick = () => { state.pack = b.dataset.pack; state.type = ''; state.project = ''; state.selected = null; renderSidebar(); loadPackItems(); };
+        }
+    });
+    $$('.source-filter').forEach(cb => cb.onchange = () => {
+        state.source = cb.checked ? cb.value : '';
+        $$('.source-filter').forEach(c => { if (c!==cb) c.checked = false; });
+        if (!cb.checked) state.source = '';
+        loadItems();
+    });
+    $$('.status-filter').forEach(cb => cb.onchange = () => {
+        state.status = cb.checked ? cb.value : '';
+        $$('.status-filter').forEach(c => { if (c!==cb) c.checked = false; });
+        if (!cb.checked) state.status = '';
+        loadItems();
+    });
+}
+
+async function newProject() {
+    const name = prompt('项目名称：');
+    if (!name || !name.trim()) return;
+    const path = prompt('项目路径（如 D:/Desktop/my-project）：');
+    if (!path || !path.trim()) return;
+    await createProject(name.trim(), path.trim());
+}
+
+async function createProject(name, path) {
+    try {
+        const r = await fetch(`${API}/api/projects`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, path}) });
+        const data = await r.json();
+        showToast(data.message, data.success?'success':'error');
+        if (data.success) { await loadProjects(); state.project = name; state.type = ''; loadProjectItems(); }
+    } catch(e) { showToast('创建失败', 'error'); }
+}
+
+async function loadProjects() {
+    try {
+        state.projects = await fetchJSON(`${API}/api/projects`);
+        renderSidebar();
+    } catch(e) {}
+}
+
+async function loadProjectItems() {
+    if (!state.project) return;
+    const proj = state.projects[state.project];
+    if (!proj) { state.items = []; renderList(); return; }
+    $('#listPanel').innerHTML = '<div class="loading"><div class="spinner"></div>扫描项目配置...</div>';
+    try {
+        state.items = await fetchJSON(`${API}/api/project-items?path=${encodeURIComponent(proj.path)}`);
+        if (!state.items.length) state.items = [];
+        renderList();
+        renderProjectStats();
+    } catch(e) {
+        $('#listPanel').innerHTML = `<div class="error-state">扫描失败<div style="font-size:12px">${e.message}</div></div>`;
+    }
+}
+
+function renderProjectStats() {
+    const proj = state.project && state.projects ? state.projects[state.project] : null;
+    if (!proj) return;
+    const byType = {};
+    state.items.forEach(i => byType[i.type] = (byType[i.type]||0) + 1);
+    const parts = [`项目: ${esc(state.project)}`, `路径: ${esc(proj.path)}`, `配置: ${state.items.length} 项`];
+    Object.entries(byType).forEach(([t,c]) => parts.push(`${t}:${c}`));
+    $('#statusbar').innerHTML = parts.join(' &middot; ');
+}
+
+async function addToProject(item) {
+    if (!state.projects || !Object.keys(state.projects).length) {
+        showToast('请先在侧边栏底部创建项目', 'error'); return;
+    }
+    const projNames = Object.keys(state.projects);
+    let targetName;
+    if (projNames.length === 1) {
+        targetName = projNames[0];
+    } else {
+        targetName = prompt(`复制到哪个项目？\n${projNames.join(', ')}`, projNames[0]);
+        if (!targetName || !state.projects[targetName]) return;
+    }
+    const proj = state.projects[targetName];
+    try {
+        const r = await fetch(`${API}/api/copy-to-project`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({project_path: proj.path, type: item.type + 's', name: item.name})
+        });
+        const data = await r.json();
+        showToast(data.message, data.success?'success':'error');
+    } catch(e) { showToast('复制失败', 'error'); }
+}
+
+// --- Packs ---
+async function newPack() {
+    const name = prompt('配置包名称（如：前端开发、Python工具集）：');
+    if (!name || !name.trim()) return;
+    try {
+        const r = await fetch(`${API}/api/packs`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name: name.trim()}) });
+        const data = await r.json();
+        showToast(data.message, data.success?'success':'error');
+        if (data.success) loadPacks();
+    } catch(e) { showToast('创建失败', 'error'); }
+}
+
+async function loadPacks() {
+    try { state.packs = await fetchJSON(`${API}/api/packs`); renderSidebar(); } catch(e) {}
+}
+
+async function loadPackItems() {
+    if (!state.pack) return;
+    const pack = state.packs[state.pack];
+    if (!pack) { state.items = []; renderList(); return; }
+    $('#listPanel').innerHTML = '<div class="loading"><div class="spinner"></div>加载中...</div>';
+    const allItems = [];
+    for (const typeKey of ['skills','agents','commands','rules']) {
+        for (const name of (pack[typeKey] || [])) {
+            try { const item = await fetchJSON(`${API}/api/item/${typeKey}/${encodeURIComponent(name)}`); if (item) allItems.push(item); }
+            catch(e) {}
+        }
+    }
+    state.items = allItems; renderList(); renderPackStats();
+}
+
+function renderPackStats() {
+    const pack = state.pack ? state.packs[state.pack] : null;
+    if (!pack) return;
+    const total = (pack.skills||[]).length + (pack.agents||[]).length + (pack.commands||[]).length + (pack.rules||[]).length;
+    $('#statusbar').innerHTML = `📦 ${esc(state.pack)} &middot; ${total} 项 &middot; Skills:${(pack.skills||[]).length} Agents:${(pack.agents||[]).length} Commands:${(pack.commands||[]).length} Rules:${(pack.rules||[]).length}`;
+}
+
+async function addToPack(item) {
+    if (!state.packs || !Object.keys(state.packs).length) { showToast('请先在侧边栏创建配置包', 'error'); return; }
+    const names = Object.keys(state.packs);
+    let target = names.length === 1 ? names[0] : prompt(`添加到哪个包？\n${names.join(', ')}`, names[0]);
+    if (!target || !state.packs[target]) return;
+    try {
+        const r = await fetch(`${API}/api/packs/${encodeURIComponent(target)}/items`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({type:item.type, item_name:item.name})
+        });
+        const data = await r.json();
+        showToast(data.message, data.success?'success':'error');
+        if (data.success) loadPacks();
+    } catch(e) { showToast('添加失败', 'error'); }
+}
+
+// --- List ---
+function renderList() {
+    const panel = $('#listPanel');
+    if (!state.items.length) {
+        panel.innerHTML = `<div class="empty">没有找到匹配项<div style="font-size:12px;color:var(--text-secondary)">试试其他搜索词或清除筛选</div></div>`;
+        return;
+    }
+    panel.innerHTML = state.items.map(item => {
+        const sel = state.selected && state.selected.type===item.type && state.selected.name===item.name;
+        return `<div class="list-item${sel?' selected':''}" data-type="${item.type}" data-name="${esc_attr(item.name)}" role="option" aria-selected="${sel}" onclick="selectItem('${item.type}','${esc_js(item.name)}')">
+            <div class="item-header">
+                <span class="status-dot ${item.status}" title="${item.status==='active'?'活跃':'隔离'}"></span>
+                <span class="item-name">${esc(item.name)}</span>
+                <span class="source-tag ${item.source}">${item.source}</span>
+            </div>
+            ${item.description?`<div class="item-desc">${esc(item.description.substring(0,80))}</div>`:''}
+        </div>`;
+    }).join('');
+    applySourceStyles();
+    // Scroll selected into view
+    const selEl = panel.querySelector('.list-item.selected');
+    if (selEl) selEl.scrollIntoView({ block: 'nearest' });
+}
+
+// --- Detail ---
+function renderDetail(item) {
+    const toLabel = item.status==='active'?'隔离区':'活跃区';
+    const toStatus = item.status==='active'?'archived':'active';
+    const content = item.content_preview||'';
+    const isReadOnly = item.type==='mcp' || item.type==='tool';
+    const isMcpDesc = item.type==='mcp' || item.type==='workflow';
+    const isWorkflow = item.type==='workflow';
+    $('#detailPanel').innerHTML = `
+        <div class="detail-section"><h3>详情</h3>
+            <div class="detail-row"><span class="detail-label">名称</span>${esc(item.name)}</div>
+            <div class="detail-row"><span class="detail-label">类型</span>${item.type}</div>
+            <div class="detail-row"><span class="detail-label">来源</span><span class="source-tag ${item.source}">${item.source}</span></div>
+            ${!isReadOnly?`<div class="detail-row"><span class="detail-label">状态</span><span class="status-dot ${item.status}" style="display:inline-block"></span> ${item.status==='active'?'活跃':'隔离'}</div>`:''}
+        </div>
+        <div class="detail-section"><h3>${isReadOnly?'配置文件':'路径'}</h3><div class="detail-path">${esc(item.path)}</div></div>
+        <div class="detail-section"><h3>描述</h3>
+            ${isMcpDesc?`<textarea id="editDesc" style="width:100%;min-height:48px;font-size:13px;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-secondary);color:var(--text);resize:vertical;font-family:inherit;line-height:1.5">${esc(item.description||'')}</textarea>`
+            :`<div style="font-size:14px;line-height:1.5">${esc(item.description||'无描述')}</div>`}
+        </div>
+        ${isWorkflow?`<div class="detail-section"><h3>JSON 编辑</h3><textarea id="editContent" style="width:100%;min-height:300px;font-family:'Cascadia Code','Fira Code',monospace;font-size:12px;padding:12px;border:1px solid var(--border);border-radius:4px;resize:vertical;background:var(--bg-secondary);color:var(--text);line-height:1.5;tab-size:2">${esc(content)}</textarea></div>`
+        :isMcpDesc?`<div class="detail-section"><h3>Server 配置</h3><pre class="preview-box">${esc(content)}</pre></div>`
+        :isReadOnly?`<div class="detail-section"><h3>详情</h3><pre class="preview-box">${esc(content)}</pre></div>`
+        :`<div class="detail-section"><h3>内容编辑</h3><textarea id="editContent" style="width:100%;min-height:300px;font-family:'Cascadia Code','Fira Code',monospace;font-size:12px;padding:12px;border:1px solid var(--border);border-radius:4px;resize:vertical;background:var(--bg-secondary);color:var(--text);line-height:1.5;tab-size:2">${esc(content)}</textarea></div>`}
+        <div class="actions">
+            ${isMcpDesc?`<button class="btn primary" id="btnSaveDesc">💾 保存描述</button>`:''}
+            ${!isReadOnly || isWorkflow?`<button class="btn primary" id="btnSave">💾 保存</button>`:''}
+            ${!isReadOnly && !isWorkflow?`<button class="btn primary" id="btnMove">↗ 移到${toLabel}</button>`:''}
+            ${!isReadOnly?`<button class="btn" id="btnAddToProject">📁 加到项目</button>
+            <button class="btn" id="btnAddToPack">📦 加到包</button>`:''}
+            <button class="btn" id="btnCopy">📋 复制路径</button>
+        </div>`;
+    // MCP save description
+    const editDesc = $('#editDesc');
+    if (editDesc) {
+        $('#btnSaveDesc').onclick = async () => {
+            const btn = $('#btnSaveDesc'); btn.disabled = true; btn.textContent = '保存中...';
+            try {
+                const r = await fetch(`${API}/api/item/${item.type}s/${encodeURIComponent(item.name)}`, {
+                    method:'PUT', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({description: editDesc.value})
+                });
+                const data = await r.json();
+                showToast(data.message, data.success?'success':'error');
+                if (data.success) { item.description = editDesc.value; state.selected = item; }
+            } catch(e) { showToast('保存失败: '+e.message, 'error'); }
+            btn.disabled = false; btn.textContent = '💾 保存描述';
+        };
+    }
+    // Save button (for non-MCP)
+    const editEl = $('#editContent');
+    if (editEl) {
+        $('#btnSave').onclick = async () => {
+            const btn = $('#btnSave'); btn.disabled = true; btn.textContent = '保存中...';
+            try {
+                const r = await fetch(`${API}/api/item/${item.type}s/${encodeURIComponent(item.name)}`, {
+                    method:'PUT', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({content: editEl.value})
+                });
+                const data = await r.json();
+                showToast(data.message, data.success?'success':'error');
+                if (data.success) { item.content_preview = editEl.value; state.selected = item; }
+            } catch(e) { showToast('保存失败: '+e.message, 'error'); }
+            btn.disabled = false; btn.textContent = '💾 保存';
+        };
+        editEl.addEventListener('keydown', e => {
+            if ((e.ctrlKey||e.metaKey) && e.key==='s') { e.preventDefault(); $('#btnSave').click(); }
+        });
+    }
+    // Move button (not for MCP)
+    const btnMove = $('#btnMove');
+    if (btnMove) btnMove.onclick = () => showConfirm(item, toStatus);
+    const btnAddProj = $('#btnAddToProject');
+    if (btnAddProj) btnAddProj.onclick = () => addToProject(item);
+    const btnAddPack = $('#btnAddToPack');
+    if (btnAddPack) btnAddPack.onclick = () => addToPack(item);
+    $('#btnCopy').onclick = () => {
+        navigator.clipboard.writeText(item.path);
+        showToast('已复制路径', 'success');
+    };
+    applySourceStyles();
+}
+
+function showConfirm(item, toStatus) {
+    const label = toStatus==='archived'?'隔离区':'活跃区';
+    const ov = document.createElement('div');
+    ov.className = 'overlay';
+    ov.innerHTML = `<div class="dialog"><p>将 <strong>${esc(item.name)}</strong> 移到${label}？</p><div class="dialog-actions"><button class="btn" id="btnCancel">取消</button><button class="btn primary" id="btnConfirm">确认</button></div></div>`;
+    document.body.appendChild(ov);
+    ov.querySelector('#btnCancel').onclick = () => ov.remove();
+    ov.querySelector('#btnConfirm').onclick = async () => { ov.remove(); await doMove(item, toStatus); };
+}
+
+async function doMove(item, toStatus) {
+    const btn = $('#btnMove'); if (btn) btn.disabled = true;
+    try {
+        const data = await fetchJSON(`${API}/api/move`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({type:item.type,name:item.name,to:toStatus})
+        });
+        showToast(data.message, data.success?'success':'error');
+        if (data.success) { state.selected = null; await Promise.all([loadItems(), loadStats()]); }
+    } catch(e) {
+        showToast('移动失败: '+e.message, 'error');
+    }
+    if (btn) btn.disabled = false;
+}
+
+// --- Stats bar ---
+function renderStats() {
+    if (state.project) { renderProjectStats(); return; }
+    if (!state.stats) return;
+    let total=0,ac=0,ar=0;
+    Object.values(state.stats).forEach(st => { ac+=st.active||0; ar+=st.archived||0; total+=(st.active||0)+(st.archived||0); });
+    const unk = state.items.filter(i=>i.source==='unknown').length;
+    $('#statusbar').innerHTML = `共 ${total} 项 &middot; 活跃 ${ac} &middot; 隔离 ${ar}${unk?` &middot; <span class="warn">未知来源 ${unk}</span>`:''}`;
+}
+
+// --- Data loading ---
+async function loadItems() {
+    $('#listPanel').innerHTML = '<div class="loading"><div class="spinner"></div>加载中...</div>';
+    try {
+        const p = new URLSearchParams({ type: state.type+'s' });
+        if (state.source) p.set('source', state.source);
+        if (state.wfMode) p.set('source', state.wfMode);
+        if (state.status) p.set('status', state.status);
+        if (state.search) p.set('search', state.search);
+        state.items = await fetchJSON(`${API}/api/items?${p}`);
+        renderList();
+        renderStats();
+    } catch(e) {
+        $('#listPanel').innerHTML = `<div class="error-state">加载失败<div style="font-size:12px">${e.message}</div><button class="btn" onclick="loadItems()">重试</button></div>`;
+    }
+}
+
+async function selectItem(type, name) {
+    const cached = state.items.find(i => i.type===type && i.name===name);
+    if (cached) { state.selected = cached; renderDetail(cached); renderList(); return; }
+    $('#detailPanel').innerHTML = '<div class="loading"><div class="spinner"></div>加载详情...</div>';
+    try {
+        const item = await fetchJSON(`${API}/api/item/${type}s/${encodeURIComponent(name)}`);
+        if (item) { state.selected = item; renderDetail(item); renderList(); }
+        else { $('#detailPanel').innerHTML = '<div class="empty">未找到该项目</div>'; }
+    } catch(e) {
+        $('#detailPanel').innerHTML = `<div class="error-state">加载详情失败<div style="font-size:12px">${e.message}</div><button class="btn" onclick="selectItem('${type}','${name}')">重试</button></div>`;
+    }
+}
+
+async function loadStats() {
+    try { state.stats = await fetchJSON(`${API}/api/stats`); renderSidebar(); renderStats(); }
+    catch(e) { /* silent */ }
+}
+
+// --- Toast ---
+let toastTimer;
+function showToast(msg, type) {
+    const t = $('#toast'); t.textContent = msg; t.className = `toast ${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.className = 'toast', 2500);
+}
+
+// --- Keyboard ---
+document.addEventListener('keydown', e => {
+    if ((e.ctrlKey||e.metaKey) && e.key==='k') { e.preventDefault(); $('#search').focus(); }
+    if (e.key==='Escape' && document.activeElement===$('#search')) {
+        $('#search').value = ''; state.search = ''; loadItems();
+    }
+});
+
+// --- Search ---
+$('#search').addEventListener('input', () => {
+    clearTimeout(state.timer);
+    state.timer = setTimeout(() => { state.search = $('#search').value.trim(); state.selected = null; loadItems(); }, 300);
+});
+
+// --- Init ---
+loadStats(); loadItems(); loadProjects(); loadPacks();
+</script>
+</body>
+</html>

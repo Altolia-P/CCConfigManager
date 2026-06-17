@@ -1,0 +1,17 @@
+[project]
+name = "claude-project-manager"
+version = "1.0.0"
+description = "Claude Code config manager - browse, search, edit, and organize Skills, Agents, Commands, Rules, MCP, Tools, and Workflows"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+]
+
+[project.scripts]
+claude-pm = "app:main"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

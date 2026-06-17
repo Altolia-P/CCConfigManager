@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+.claude/
+bash.exe.stackdump
+venv/
