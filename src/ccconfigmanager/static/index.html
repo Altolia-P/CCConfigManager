@@ -1,0 +1,2308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Manager</title>
+<style>
+:root {
+    --color-ecc: #7c3aed;
+    --color-gstack: #059669;
+    --color-superpowers: #2563eb;
+    --color-standalone: #6b7280;
+    --color-unknown: #ea580c;
+    --color-example-skills: #0891b2;
+    --color-claude-mem: #9333ea;
+    --color-active: #16a34a;
+    --color-archived: #dc2626;
+    --bg: #ffffff;
+    --bg-secondary: #f9fafb;
+    --bg-hover: #f3f4f6;
+    --bg-selected: #eff6ff;
+    --text: #111827;
+    --text-secondary: #6b7280;
+    --border: #e5e7eb;
+    --radius: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text); background: var(--bg-secondary);
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* Top bar */
+.topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.search-wrap { flex: 1; position: relative; max-width: 560px; }
+.search-wrap input {
+    width: 100%; padding: 8px 12px 8px 32px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: 14px; outline: none;
+    background: var(--bg-secondary); transition: border-color .15s, box-shadow .15s;
+}
+.search-wrap input:focus {
+    border-color: var(--color-superpowers); background: var(--bg); box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+.search-wrap .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 13px; }
+.topbar .hint { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+
+/* Main area */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* Left nav */
+.sidebar {
+    width: 200px; min-width: 200px; background: var(--bg);
+    border-right: 1px solid var(--border); overflow-y: auto;
+    padding: 12px; display: flex; flex-direction: column; gap: 14px;
+}
+.sidebar h3 { font-size: 11px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: .5px; }
+.sidebar .type-list { display: flex; flex-direction: column; gap: 2px; }
+.sidebar .type-item {
+    display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+    border-radius: 6px; cursor: pointer; font-size: 13px; transition: background .12s;
+    border: none; background: none; width: 100%; text-align: left; color: var(--text); font-family: inherit;
+}
+.sidebar .type-item:hover { background: var(--bg-hover); }
+.sidebar .type-item.active { background: var(--bg-selected); color: var(--color-superpowers); font-weight: 600; }
+.sidebar .type-item .count { margin-left: auto; font-size: 11px; color: var(--text-secondary); }
+.sidebar .type-item .count .ac { color: var(--color-active); }
+.sidebar .type-item .count .ar { color: var(--color-archived); margin-left: 2px; }
+.sidebar .type-item .sidebar-del { display:none; margin-left:4px; font-size:14px; font-weight:700; color:var(--color-archived); line-height:1; }
+.sidebar .type-item:hover .sidebar-del { display:inline; }
+.sidebar .type-item .sidebar-del:hover { color:#e00; }
+.sidebar .filters { display: flex; flex-direction: column; gap: 6px; }
+.sidebar .filter-group { display: flex; flex-direction: column; gap: 3px; }
+.sidebar .filter-group label {
+    font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;
+    padding: 2px 4px; border-radius: 4px; transition: background .1s;
+}
+.sidebar .filter-group label:hover { background: var(--bg-hover); }
+.sidebar .filter-group input[type=checkbox] { accent-color: var(--color-superpowers); }
+
+/* Middle list */
+.list-panel { width: 350px; min-width: 350px; border-right: 1px solid var(--border); background: var(--bg); overflow-y: auto; }
+.list-panel .list-item {
+    padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer;
+    transition: background .1s; display: flex; flex-direction: column; gap: 4px;
+}
+.list-panel .list-item:hover { background: var(--bg-hover); }
+.list-panel .list-item.selected {
+    background: var(--bg-selected); border-left: 3px solid var(--color-superpowers); padding-left: 11px;
+}
+.list-panel .list-item .item-header { display: flex; align-items: center; gap: 8px; }
+.list-panel .list-item .item-name { font-size: 14px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list-panel .list-item .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.list-panel .list-item .status-dot.active { background: var(--color-active); }
+.list-panel .list-item .status-dot.archived { background: var(--color-archived); }
+.list-panel .list-item .item-desc { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.source-tag {
+    font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600;
+    white-space: nowrap; letter-spacing: .3px; flex-shrink: 0;
+}
+
+/* Right detail */
+.detail-panel { flex: 1; background: var(--bg); overflow-y: auto; padding: 24px; }
+.detail-panel .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; color: var(--text-secondary); font-size: 14px; gap: 8px;
+}
+.detail-panel .empty-state .empty-icon { font-size: 32px; opacity: .4; }
+.detail-section { margin-bottom: 20px; }
+.detail-section h3 { font-size: 11px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 6px; letter-spacing: .5px; }
+.detail-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 14px; }
+.detail-label { color: var(--text-secondary); min-width: 56px; font-size: 12px; }
+.detail-path { font-size: 12px; color: var(--text-secondary); font-family: "Cascadia Code", "Fira Code", monospace; word-break: break-all; background: var(--bg-secondary); padding: 8px; border-radius: 4px; }
+.preview-box { font-size: 12px; font-family: "Cascadia Code", "Fira Code", monospace; background: var(--bg-secondary); padding: 12px; border-radius: 4px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; color: var(--text-secondary); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+
+.btn {
+    padding: 8px 16px; border-radius: var(--radius); border: 1px solid var(--border);
+    font-size: 13px; cursor: pointer; background: var(--bg); transition: all .12s;
+    display: inline-flex; align-items: center; gap: 4px; font-family: inherit;
+}
+.btn:hover { background: var(--bg-hover); }
+.btn:focus-visible { outline: 2px solid var(--color-superpowers); outline-offset: 1px; }
+.btn.primary { background: var(--color-superpowers); color: white; border-color: var(--color-superpowers); }
+.btn.primary:hover { background: #1d4ed8; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Bottom bar */
+.statusbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 16px; background: var(--bg); border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--text-secondary); flex-shrink: 0;
+}
+.statusbar .warn { color: var(--color-unknown); font-weight: 600; }
+
+/* Spinner */
+.spinner {
+    width: 20px; height: 20px; border: 2px solid var(--border);
+    border-top-color: var(--color-superpowers); border-radius: 50%;
+    animation: spin .6s linear infinite; margin: 0 auto 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: var(--text-secondary); font-size: 13px; gap: 8px; }
+.empty, .error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: var(--text-secondary); font-size: 14px; gap: 8px; text-align: center; }
+.error-state { color: var(--color-archived); }
+
+/* Toast */
+.toast {
+    position: fixed; bottom: 48px; right: 24px; padding: 10px 20px;
+    border-radius: var(--radius); font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,.15);
+    z-index: 999; transform: translateY(80px); opacity: 0;
+    transition: transform .25s ease, opacity .25s ease; pointer-events: none;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { background: #065f46; color: #fff; }
+.toast.error { background: #991b1b; color: #fff; }
+
+/* Confirm dialog */
+.overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.3); display: flex;
+    align-items: center; justify-content: center; z-index: 100;
+    animation: fadeIn .15s;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.dialog { background: var(--bg); border-radius: 12px; padding: 24px; max-width: 380px; box-shadow: 0 16px 40px rgba(0,0,0,.2); }
+.dialog p { margin-bottom: 16px; font-size: 14px; line-height: 1.5; }
+.dialog .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ============================================================
+   Workflow Editor
+   ============================================================ */
+
+/* Override detail panel for full-bleed canvas */
+.detail-panel.wf-active { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+
+.wf-toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; flex-shrink: 0; border-bottom: 1px solid var(--border); background: var(--bg); }
+.wf-toolbar .wf-title { font-size: 14px; font-weight: 600; }
+.wf-toolbar .wf-mode-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; letter-spacing: .3px; }
+.wf-toolbar .wf-mode-badge.auto { background: var(--bg-selected); color: var(--color-superpowers); }
+.wf-toolbar .wf-mode-badge.step { background: var(--bg-secondary); color: var(--color-unknown); font-weight: 600; }
+.wf-toolbar .wf-spacer { flex: 1; }
+.wf-toolbar .wf-status { font-size: 11px; color: var(--text-secondary); }
+.wf-toolbar .wf-status .unsaved { color: var(--color-unknown); font-weight: 600; }
+
+.wf-main { display: flex; flex: 1; min-height: 0; }
+
+/* Sidebar */
+.wf-sidebar { width: 180px; min-width: 180px; background: var(--bg); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; font-size: 12px; }
+.wf-sidebar-section { padding: 12px; border-bottom: 1px solid var(--border); }
+.wf-sidebar-section:last-child { border-bottom: none; }
+.wf-sidebar-label { font-size: 10px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: .6px; margin-bottom: 6px; font-weight: 600; }
+.wf-sidebar .wf-node-type-btn { display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px 8px; margin-bottom: 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); cursor: pointer; font-size: 12px; font-family: inherit; color: var(--text); transition: all .12s; text-align: left; }
+.wf-sidebar .wf-node-type-btn:hover { background: var(--bg-hover); border-color: var(--text-secondary); }
+.wf-sidebar .wf-node-type-btn:focus-visible { outline: 2px solid var(--color-superpowers); outline-offset: 1px; }
+.wf-sidebar .wf-node-type-btn .type-icon { width: 18px; text-align: center; flex-shrink: 0; }
+.wf-sidebar .wf-node-type-btn .type-hint { font-size: 10px; color: var(--text-secondary); margin-left: auto; }
+.wf-sidebar .wf-select { width: 100%; padding: 6px 28px 6px 8px; font-size: 12px; font-family: inherit; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); cursor: pointer; outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%236b7280' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
+.wf-sidebar .wf-select:focus { border-color: var(--color-superpowers); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+
+/* Sidebar tabs */
+.wf-sidebar-tabs { display: flex; gap: 1px; margin-bottom: 8px; background: var(--bg-secondary); border-radius: var(--radius); padding: 2px; }
+.wf-sidebar-tabs .wf-tab { flex: 1; padding: 4px 0; font-size: 10px; font-family: inherit; border: none; background: transparent; border-radius: 5px; cursor: pointer; color: var(--text-secondary); font-weight: 500; transition: all .1s; }
+.wf-sidebar-tabs .wf-tab.active { background: var(--bg); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.wf-sidebar-tabs .wf-tab:hover:not(.active) { color: var(--text); }
+
+/* Sidebar scrollable list */
+.wf-sidebar-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.wf-sidebar-list .wf-list-item { display: flex; align-items: center; gap: 6px; padding: 4px 8px; cursor: pointer; border-radius: 4px; font-size: 12px; transition: background .08s; color: var(--text); }
+.wf-sidebar-list .wf-list-item:hover { background: var(--bg-hover); }
+.wf-sidebar-list .wf-list-item .item-icon { flex-shrink: 0; font-size: 13px; width: 18px; text-align: center; }
+
+/* Node properties — floating overlay */
+.wf-props-overlay { position: absolute; top: 8px; right: 8px; width: 260px; max-height: calc(100% - 16px); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 15; display: none; flex-direction: column; overflow: hidden; }
+.wf-props-overlay.open { display: flex; }
+.wf-props-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; flex-shrink: 0; cursor: move; user-select: none; }
+.wf-props-header button { border: none; background: transparent; cursor: pointer; font-size: 14px; color: var(--text-secondary); padding: 2px 4px; border-radius: 4px; }
+.wf-props-header button:hover { background: var(--bg-hover); color: var(--text); }
+.wf-props-body { padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.wf-props-body .wf-field { display: flex; flex-direction: column; gap: 4px; }
+.wf-props-body .wf-field label { font-size: 11px; color: var(--text-secondary); }
+.wf-props-body .wf-field input, .wf-props-body .wf-field select, .wf-props-body .wf-field textarea { padding: 6px 8px; font-size: 12px; font-family: inherit; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); outline: none; }
+.wf-props-body .wf-field input:focus, .wf-props-body .wf-field select:focus, .wf-props-body .wf-field textarea:focus { border-color: var(--color-superpowers); box-shadow: 0 0 0 2px rgba(37,99,235,.08); }
+.wf-props-body .wf-field select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%236b7280' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 28px; }
+.wf-props-body .wf-radios { display: flex; gap: 2px; background: var(--bg-secondary); border-radius: 6px; padding: 2px; }
+.wf-props-body .wf-radios button { flex: 1; padding: 4px 0; font-size: 11px; font-family: inherit; border: none; background: transparent; border-radius: 4px; cursor: pointer; color: var(--text-secondary); transition: all .1s; }
+.wf-props-body .wf-radios button.active { background: var(--bg); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.06); font-weight: 500; }
+.wf-props-body .wf-radios button:hover:not(.active) { color: var(--text); }
+
+/* Canvas */
+.wf-canvas-wrap { flex: 1; position: relative; overflow: hidden; background-color: var(--bg-secondary); background-image: radial-gradient(circle, var(--border) 1px, transparent 1px); background-size: 24px 24px; }
+.wf-canvas-wrap svg { width: 100%; height: 100%; display: block; }
+
+/* Zoom controls */
+.wf-controls { position: absolute; bottom: 10px; right: 10px; display: flex; gap: 2px; z-index: 10; background: var(--bg); border-radius: 6px; padding: 2px; border: 1px solid var(--border); }
+.wf-controls button { width: 28px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 13px; border: none; background: transparent; cursor: pointer; border-radius: 4px; color: var(--text-secondary); font-family: inherit; line-height: 1; }
+.wf-controls button:hover { background: var(--bg-hover); color: var(--text); }
+.wf-controls button:focus-visible { outline: 2px solid var(--color-superpowers); outline-offset: 1px; }
+.wf-props-header button:focus-visible { outline: 2px solid var(--color-superpowers); outline-offset: 1px; }
+
+/* Nodes */
+.wf-node { cursor: grab; user-select: none; }
+.wf-node.dragging { cursor: grabbing; opacity: .85; }
+.wf-node.selected .node-body { stroke: var(--color-superpowers) !important; stroke-width: 2.5 !important; }
+
+/* Agent node */
+.node-agent .node-body { fill: var(--bg); stroke: var(--border); stroke-width: 1.5; }
+.node-agent .node-body-bg { fill: var(--bg-secondary); }
+.node-agent .node-title { font-size: 14px; fill: var(--text); font-weight: 600; }
+.node-agent .node-sub { font-size: 11px; fill: var(--text-secondary); }
+.node-agent .node-icon-bg { fill: var(--bg-selected); stroke: var(--color-superpowers); stroke-width: 1; opacity: .5; }
+.node-agent .node-handle { fill: var(--text-secondary); stroke: var(--bg); stroke-width: 2; cursor: crosshair; }
+.node-agent .node-handle:hover { fill: var(--color-superpowers); }
+
+/* Gate node */
+.node-gate .node-body { fill: var(--bg); stroke: var(--color-unknown); stroke-width: 1.5; }
+.node-gate .node-title { font-size: 11px; fill: var(--text); font-weight: 600; }
+.node-gate .node-icon-bg { fill: var(--bg-secondary); stroke: var(--color-unknown); stroke-width: 1; opacity: .5; }
+.node-gate .node-handle { fill: var(--color-unknown); stroke: var(--bg); stroke-width: 2; cursor: crosshair; }
+.node-gate .node-handle:hover { fill: var(--color-superpowers); }
+
+/* Hook node */
+.node-hook .node-body { fill: var(--bg-secondary); stroke: var(--text-secondary); stroke-width: 1.5; stroke-dasharray: 5 3; }
+.node-hook .node-title { font-size: 11px; fill: var(--text-secondary); }
+.node-hook .node-handle { fill: var(--text-secondary); stroke: var(--bg); stroke-width: 2; cursor: crosshair; }
+.node-hook .node-handle:hover { fill: var(--color-superpowers); }
+
+/* Tag list (produces) */
+.wf-tag-list { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.wf-tag { display: inline-flex; align-items: center; gap: 2px; background: var(--bg-selected); color: var(--color-superpowers); font-size: 10px; padding: 1px 6px; border-radius: 8px; }
+.wf-tag .wf-tag-x { border: none; background: transparent; cursor: pointer; color: inherit; font-size: 12px; padding: 0 2px; line-height: 1; }
+.wf-tag .wf-tag-x:hover { color: var(--color-archived); }
+/* Hook rows */
+.wf-hook-list { display: flex; flex-direction: column; gap: 2px; }
+.wf-hook-row { display: flex; align-items: center; gap: 4px; padding: 2px 6px; background: var(--bg-secondary); border-radius: 4px; }
+.wf-hook-del { border: none; background: transparent; cursor: pointer; color: var(--text-secondary); font-size: 12px; padding: 0 2px; }
+.wf-hook-del:hover { color: var(--color-archived); }
+
+/* Skills scrollable menu */
+.wf-skill-list { max-height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
+.wf-skill-check { display: flex; align-items: center; gap: 6px; padding: 4px 8px; cursor: pointer; font-size: 11px; transition: background .06s; border-bottom: 1px solid var(--border); }
+.wf-skill-check:last-child { border-bottom: none; }
+.wf-skill-check:hover { background: var(--bg-hover); }
+.wf-skill-check input[type=checkbox] { accent-color: var(--color-superpowers); margin: 0; }
+.wf-perm-checks { display: flex; flex-wrap: wrap; gap: 2px 12px; max-height: 180px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; background: var(--bg); margin-bottom: 4px; }
+.wf-perm-check { display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 12px; }
+.wf-perm-check input[type=checkbox] { accent-color: var(--color-superpowers); margin: 0; }
+.wf-perm-custom { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
+.wf-perm-custom .wf-tag { font-size: 10px; display: inline-flex; align-items: center; gap: 3px; }
+.wf-perm-suggest { display: flex; flex-wrap: wrap; gap: 3px; max-height: 80px; overflow-y: auto; margin-top: 4px; }
+.wf-perm-chip { font-size: 10px; padding: 1px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); cursor: pointer; color: var(--text-secondary); transition: all .1s; }
+.wf-perm-chip:hover { border-color: var(--color-superpowers); color: var(--color-superpowers); background: var(--bg-selected); }
+
+/* Add button */
+.node-add-btn-circle { fill: var(--bg); stroke: var(--border); stroke-width: 1.5; cursor: pointer; opacity: 0; transition: opacity .15s; }
+.wf-node:hover .node-add-btn-circle { opacity: 1; }
+.node-add-btn-circle:hover { fill: var(--bg-selected); stroke: var(--color-superpowers); }
+.node-add-btn-plus { fill: var(--text-secondary); pointer-events: none; opacity: 0; transition: opacity .15s; }
+.wf-node:hover .node-add-btn-plus { opacity: 1; }
+.node-add-btn-circle:hover + .node-add-btn-plus { fill: var(--color-superpowers); }
+
+/* Delete button on node */
+.node-del-btn-circle { fill: var(--bg); stroke: var(--color-archived); stroke-width: 1.5; cursor: pointer; opacity: 0; transition: opacity .15s; }
+.wf-node:hover .node-del-btn-circle { opacity: 1; }
+.node-del-btn-circle:hover { fill: var(--color-archived); stroke: var(--color-archived); }
+.node-del-btn-x { fill: var(--color-archived); pointer-events: none; opacity: 0; transition: opacity .15s; }
+.wf-node:hover .node-del-btn-x { opacity: 1; }
+.node-del-btn-circle:hover + .node-del-btn-x { fill: #fff; }
+
+/* Edges */
+.wf-edge { fill: none; stroke: var(--text-secondary); stroke-width: 2; cursor: pointer; transition: all .12s; color: var(--text-secondary); }
+.wf-edge-hit { fill: none; stroke: transparent; stroke-width: 12; cursor: pointer; }
+.wf-edge:hover { stroke: var(--color-superpowers); color: var(--color-superpowers); stroke-width: 3; }
+.wf-edge.selected { stroke: var(--color-superpowers); color: var(--color-superpowers); stroke-width: 3; }
+.wf-edge-temp { fill: none; stroke: var(--color-superpowers); stroke-width: 2; stroke-dasharray: 6 3; pointer-events: none; opacity: .6; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+    <div class="search-wrap">
+        <span class="search-icon">&#x1F50D;</span>
+        <input id="search" type="text" placeholder="搜索..." aria-label="搜索配置项">
+    </div>
+    <span class="hint">Ctrl+K 搜索 &middot; Esc 清除</span>
+</header>
+
+<div class="main">
+    <nav class="sidebar" id="sidebar" aria-label="筛选导航"></nav>
+    <div class="list-panel" id="listPanel" role="listbox"><div class="loading"><div class="spinner"></div>加载中...</div></div>
+    <div class="detail-panel" id="detailPanel"><div class="empty-state"><div class="empty-icon">&#x2B07;</div>点击左侧列表中的项目查看详情</div></div>
+</div>
+
+<footer class="statusbar" id="statusbar"></footer>
+
+<div class="toast" id="toast" aria-live="polite"></div>
+
+<script>
+const API = '';
+const TYPES = [['skill','Skills'],['agent','Agents'],['command','Commands'],['rule','Rules'],['mcp','MCP'],['tool','Tools']];
+const WORKFLOW_MODES = [['auto','Auto 自动编排'],['step','Step 阶段门禁']];
+const SOURCES = [['ecc','ECC'],['gstack','Gstack'],['superpowers','Superpowers'],['claude-mem','Claude Mem'],['example-skills','Example'],['standalone','独立'],['unknown','未知']];
+const state = { type:'skill', source:'', status:'', search:'', selected:null, items:[], stats:null, timer:null, projects:{}, project:'', packs:{}, pack:'', wfMode:'' };
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+async function fetchJSON(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(String(r.status));
+    return r.json();
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+const SOURCE_COLORS = ['#7c3aed','#059669','#2563eb','#ea580c','#0891b2','#9333ea','#c2410c','#4f46e5','#0d9488','#b91c1c','#1e40af','#a21caf'];
+const SOURCE_BG = ['#ede9fe','#d1fae5','#dbeafe','#fff7ed','#cffafe','#f3e8ff','#fff1f2','#eef2ff','#ccfbf1','#fef2f2','#dbeafe','#fae8ff'];
+function sourceStyle(source) {
+    let h = 0;
+    for (let i = 0; i < source.length; i++) h = ((h << 5) - h) + source.charCodeAt(i);
+    const idx = Math.abs(h) % SOURCE_COLORS.length;
+    return `background:${SOURCE_BG[idx]};color:${SOURCE_COLORS[idx]}`;
+}
+function applySourceStyles() {
+    [...document.querySelectorAll('.source-tag')].forEach(el => {
+        const src = el.className.replace('source-tag','').trim();
+        el.setAttribute('style', sourceStyle(src));
+    });
+}
+function esc_attr(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc_js(s) { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n'); }
+function trunc(s, max) { s = String(s||''); return s.length > max ? s.slice(0, max) + '…' : s; }
+
+// --- Sidebar ---
+function renderSidebar() {
+    if (!state.stats) return;
+    let h = '<h3>配置类型</h3><div class="type-list">';
+    TYPES.forEach(([k,label]) => {
+        const st = state.stats[k] || {};
+        const ac = st.active||0, ar = st.archived||0;
+        h += `<button class="type-item${state.type===k?' active':''}" data-type="${k}">${label}<span class="count"><span class="ac">${ac}</span>${ar?`<span class="ar">/${ar}</span>`:''}</span></button>`;
+    });
+    // Workflows with dropdown sub-modes
+    const wf = state.stats['workflow'] || {};
+    const wfTotal = (wf.active||0)+(wf.archived||0);
+    h += `<button class="type-item${state.type==='workflow' && !state.wfMode?' active':''}" data-type="workflow">Workflows<span class="count">${wfTotal}</span></button>`;
+    h += '<button class="type-item" style="color:var(--color-superpowers);font-size:12px;padding-left:16px" onclick="newWorkflow()">+ 新建工作流</button>';
+    WORKFLOW_MODES.forEach(([mode,label]) => {
+        h += `<button class="type-item${state.type==='workflow' && state.wfMode===mode?' active':''}" data-wfmode="${mode}" style="padding-left:24px;font-size:12px">${label}</button>`;
+    });
+    h += '</div><h3>来源筛选</h3><div class="filters"><div class="filter-group">';
+    SOURCES.forEach(([k,label]) => {
+        h += `<label><input type="checkbox" class="source-filter" value="${k}"${state.source===k?' checked':''}> <span class="source-tag ${k}">${label}</span></label>`;
+    });
+    h += '</div></div><h3>状态筛选</h3><div class="filters"><div class="filter-group">';
+    [['active','活跃'],['archived','隔离']].forEach(([k,label]) => {
+        h += `<label><input type="checkbox" class="status-filter" value="${k}"${state.status===k?' checked':''}> ${label}</label>`;
+    });
+    h += '</div></div>';
+    // Projects section
+    h += '<h3 style="margin-top:4px">项目</h3><div class="type-list" id="projectList">';
+    Object.entries(state.projects).forEach(([name, proj]) => {
+        const total = (proj.skills||[]).length + (proj.agents||[]).length + (proj.commands||[]).length + (proj.rules||[]).length + (proj.mcps||[]).length + (proj.workflows||[]).length;
+        h += `<button class="type-item${state.project===name?' active':''}" data-project="${esc_attr(name)}">${esc(name)}<span class="count">${total}</span><span class="sidebar-del" data-del-project="${esc_attr(name)}" title="删除项目">×</span></button>`;
+    });
+    h += '</div><button class="type-item" style="color:var(--color-superpowers);font-size:12px" onclick="newProject()">+ 新建项目</button>';
+    // Packs section
+    h += '<h3 style="margin-top:8px">配置包</h3><div class="type-list">';
+    Object.entries(state.packs).forEach(([name, pack]) => {
+        const total = (pack.skills||[]).length + (pack.agents||[]).length + (pack.commands||[]).length + (pack.rules||[]).length;
+        h += `<button class="type-item${state.pack===name?' active':''}" data-pack="${esc_attr(name)}">📦 ${esc(name)}<span class="count">${total}</span><span class="sidebar-del" data-del-pack="${esc_attr(name)}" title="删除包">×</span></button>`;
+    });
+    h += '</div><button class="type-item" style="color:var(--color-superpowers);font-size:12px" onclick="newPack()">+ 新建配置包</button>';
+    // Import button
+    h += '<button class="type-item" style="color:var(--color-superpowers);font-size:12px" onclick="importFile()">📥 导入工作流/配置包</button>';
+    h += '<input type="file" id="importFileInput" accept=".json" style="display:none" onchange="handleImport(event)">';
+    $('#sidebar').innerHTML = h;
+    applySourceStyles();
+
+    // Bind project type-item click handlers (skip the "新建项目" button which has no data-type or data-project)
+    $$('.type-item').forEach(b => {
+        if (b.dataset.wfmode) {
+            b.onclick = () => { maybeLeaveWorkflow(() => { state.type = 'workflow'; state.wfMode = b.dataset.wfmode; state.source = ''; state.project = ''; state.pack = ''; state.selected = null; renderSidebar(); loadItems(); }); };
+        } else if (b.dataset.type) {
+            b.onclick = () => { maybeLeaveWorkflow(() => { state.type = b.dataset.type; state.wfMode = ''; state.project = ''; state.pack = ''; state.selected = null; renderSidebar(); loadItems(); }); };
+        } else if (b.dataset.project) {
+            b.onclick = () => { maybeLeaveWorkflow(() => { state.project = b.dataset.project; state.type = ''; state.pack = ''; state.selected = null; renderSidebar(); loadProjectItems(); }); };
+        } else if (b.dataset.pack) {
+            b.onclick = () => { maybeLeaveWorkflow(() => { state.pack = b.dataset.pack; state.type = ''; state.project = ''; state.selected = null; renderSidebar(); loadPackItems(); }); };
+        }
+    });
+    $$('.source-filter').forEach(cb => cb.onchange = () => {
+        state.source = cb.checked ? cb.value : '';
+        $$('.source-filter').forEach(c => { if (c!==cb) c.checked = false; });
+        if (!cb.checked) state.source = '';
+        loadItems();
+    });
+    $$('.status-filter').forEach(cb => cb.onchange = () => {
+        state.status = cb.checked ? cb.value : '';
+        $$('.status-filter').forEach(c => { if (c!==cb) c.checked = false; });
+        if (!cb.checked) state.status = '';
+        loadItems();
+    });
+
+    // Bind sidebar delete buttons — stopPropagation prevents triggering item click
+    $$('.sidebar-del').forEach(el => {
+        el.onclick = (e) => {
+            e.stopPropagation();
+            if (el.dataset.delProject) deleteProject(el.dataset.delProject);
+            else if (el.dataset.delPack) deletePack(el.dataset.delPack);
+        };
+    });
+}
+
+async function deleteProject(name) {
+    if (!confirm(`确定删除项目 "${name}"？\n仅删除记录，不影响项目目录中的实际文件。`)) return;
+    try {
+        const r = await fetch(`${API}/api/projects/${encodeURIComponent(name)}`, { method:'DELETE' });
+        const data = await r.json();
+        showToast(data.message, data.success?'success':'error');
+        if (data.success) { if (state.project === name) { state.project = ''; state.items = []; renderList(); } loadProjects(); }
+    } catch(e) { showToast('删除失败', 'error'); }
+}
+
+async function deletePack(name) {
+    if (!confirm(`确定删除配置包 "${name}"？`)) return;
+    try {
+        const r = await fetch(`${API}/api/packs/${encodeURIComponent(name)}`, { method:'DELETE' });
+        const data = await r.json();
+        showToast(data.message, data.success?'success':'error');
+        if (data.success) { if (state.pack === name) { state.pack = ''; state.items = []; renderList(); } loadPacks(); }
+    } catch(e) { showToast('删除失败', 'error'); }
+}
+
+async function removeFromPack(item) {
+    if (!state.pack) return;
+    try {
+        const r = await fetch(`${API}/api/packs/${encodeURIComponent(state.pack)}/items`, {
+            method:'DELETE', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({type: item.type, item_name: item.name})
+        });
+        const data = await r.json();
+        showToast(data.message, data.success?'success':'error');
+        if (data.success) loadPackItems();
+    } catch(e) { showToast('移除失败', 'error'); }
+}
+
+function importFile() {
+    document.getElementById('importFileInput').click();
+}
+
+async function handleImport(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    try {
+        const r = await fetch(`${API}/api/import`, { method:'POST', body: form });
+        const data = await r.json();
+        showToast(data.message, data.success?'success':'error');
+        if (data.success) {
+            if (data.type === 'workflow') { state.type = 'workflow'; loadItems(); loadStats(); }
+            else { loadPacks(); }
+        }
+    } catch(ex) { showToast('导入失败', 'error'); }
+    e.target.value = '';
+}
+
+function exportPack(name) {
+    window.open(`${API}/api/packs/${encodeURIComponent(name)}/export`, '_blank');
+}
+
+async function newProject() {
+    const name = prompt('项目名称：');
+    if (!name || !name.trim()) return;
+    const path = prompt('项目路径（如 D:/Desktop/my-project）：');
+    if (!path || !path.trim()) return;
+    await createProject(name.trim(), path.trim());
+}
+
+async function createProject(name, path) {
+    try {
+        const r = await fetch(`${API}/api/projects`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, path}) });
+        const data = await r.json();
+        showToast(data.message, data.success?'success':'error');
+        if (data.success) { await loadProjects(); state.project = name; state.type = ''; loadProjectItems(); }
+    } catch(e) { showToast('创建失败', 'error'); }
+}
+
+async function loadProjects() {
+    try {
+        state.projects = await fetchJSON(`${API}/api/projects`);
+        renderSidebar();
+    } catch(e) {}
+}
+
+async function loadProjectItems() {
+    if (!state.project) return;
+    const proj = state.projects[state.project];
+    if (!proj) { state.items = []; renderList(); return; }
+    $('#listPanel').innerHTML = '<div class="loading"><div class="spinner"></div>加载项目配置...</div>';
+    try {
+        // Load from project metadata — lightweight, no file copy needed
+        const allItems = [];
+        const fetches = [];
+        for (const typeKey of ['skills','agents','commands','rules','mcps','workflows']) {
+            for (const name of (proj[typeKey] || [])) {
+                fetches.push(
+                    fetchJSON(`${API}/api/item/${typeKey}/${encodeURIComponent(name)}`)
+                        .then(item => { if (item) allItems.push(item); })
+                        .catch(() => {})
+                );
+            }
+        }
+        await Promise.all(fetches);
+        state._allItems = allItems;
+        state.search = ''; $('#search').value = '';
+        applyLocalFilter();
+        renderProjectStats();
+        // Auto-discover new references from project files
+        fetch(`${API}/api/projects/${encodeURIComponent(state.project)}/discover`, {method:'POST'})
+            .then(r => r.json()).then(d => {
+                if (d.added > 0) { showToast(d.message, 'success'); loadProjects(); loadProjectItems(); }
+            }).catch(() => {});
+    } catch(e) {
+        $('#listPanel').innerHTML = `<div class="error-state">加载失败<div style="font-size:12px">${e.message}</div></div>`;
+    }
+}
+
+function renderProjectStats() {
+    const proj = state.project && state.projects ? state.projects[state.project] : null;
+    if (!proj) return;
+    const byType = {};
+    state.items.forEach(i => byType[i.type] = (byType[i.type]||0) + 1);
+    const parts = [`项目: ${esc(state.project)}`, `路径: ${esc(proj.path)}`, `配置: ${state.items.length} 项`];
+    Object.entries(byType).forEach(([t,c]) => parts.push(`${t}:${c}`));
+    // Plus metadata-only items not yet loaded as items (mcps, workflows)
+    const mc = (proj.mcps||[]).length, wf = (proj.workflows||[]).length;
+    if (mc && !byType['mcp']) parts.push(`mcp:${mc}`);
+    if (wf && !byType['workflow']) parts.push(`workflow:${wf}`);
+    $('#statusbar').innerHTML = parts.join(' &middot; ');
+}
+
+async function addToProject(item) {
+    if (!state.projects || !Object.keys(state.projects).length) {
+        showToast('请先在侧边栏底部创建项目', 'error'); return;
+    }
+    const projNames = Object.keys(state.projects);
+    let targetName;
+    if (projNames.length === 1) {
+        targetName = projNames[0];
+    } else {
+        targetName = prompt(`复制到哪个项目？\n${projNames.join(', ')}`, projNames[0]);
+        if (!targetName || !state.projects[targetName]) return;
+    }
+    try {
+        const r = await fetch(`${API}/api/projects/${encodeURIComponent(targetName)}/items`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({type: item.type, item_name: item.name})
+        });
+        const data = await r.json();
+        showToast(data.message, data.success?'success':'error');
+        if (data.success) loadProjects();
+    } catch(e) { showToast('添加失败', 'error'); }
+}
+
+// --- Packs ---
+async function newPack() {
+    const name = prompt('配置包名称（如：前端开发、Python工具集）：');
+    if (!name || !name.trim()) return;
+    try {
+        const r = await fetch(`${API}/api/packs`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name: name.trim()}) });
+        const data = await r.json();
+        showToast(data.message, data.success?'success':'error');
+        if (data.success) loadPacks();
+    } catch(e) { showToast('创建失败', 'error'); }
+}
+
+async function loadPacks() {
+    try { state.packs = await fetchJSON(`${API}/api/packs`); renderSidebar(); } catch(e) {}
+}
+
+async function loadPackItems() {
+    if (!state.pack) return;
+    const pack = state.packs[state.pack];
+    if (!pack) { state.items = []; renderList(); return; }
+    $('#listPanel').innerHTML = '<div class="loading"><div class="spinner"></div>加载中...</div>';
+    const allItems = [];
+    const fetches = [];
+    for (const typeKey of ['skills','agents','commands','rules']) {
+        for (const name of (pack[typeKey] || [])) {
+            fetches.push(
+                fetchJSON(`${API}/api/item/${typeKey}/${encodeURIComponent(name)}`)
+                    .then(item => { if (item) allItems.push(item); })
+                    .catch(() => {})
+            );
+        }
+    }
+    await Promise.all(fetches);
+    state._allItems = allItems;
+    state.search = ''; $('#search').value = '';
+    applyLocalFilter();
+    renderPackStats();
+}
+
+function renderPackStats() {
+    const pack = state.pack ? state.packs[state.pack] : null;
+    if (!pack) return;
+    const total = (pack.skills||[]).length + (pack.agents||[]).length + (pack.commands||[]).length + (pack.rules||[]).length;
+    $('#statusbar').innerHTML = `📦 ${esc(state.pack)} &middot; ${total} 项 &middot; Skills:${(pack.skills||[]).length} Agents:${(pack.agents||[]).length} Commands:${(pack.commands||[]).length} Rules:${(pack.rules||[]).length} &middot; <button class="btn" style="font-size:10px;padding:1px 6px" onclick="exportPack('${esc_js(state.pack)}')">📤 导出</button>`;
+}
+
+async function addToPack(item) {
+    if (!state.packs || !Object.keys(state.packs).length) { showToast('请先在侧边栏创建配置包', 'error'); return; }
+    const names = Object.keys(state.packs);
+    let target = names.length === 1 ? names[0] : prompt(`添加到哪个包？\n${names.join(', ')}`, names[0]);
+    if (!target || !state.packs[target]) return;
+    try {
+        const r = await fetch(`${API}/api/packs/${encodeURIComponent(target)}/items`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({type:item.type, item_name:item.name})
+        });
+        const data = await r.json();
+        showToast(data.message, data.success?'success':'error');
+        if (data.success) loadPacks();
+    } catch(e) { showToast('添加失败', 'error'); }
+}
+
+// --- List ---
+function renderList() {
+    const panel = $('#listPanel');
+    if (!state.items.length) {
+        if (state.project) {
+            panel.innerHTML = `<div class="empty"><div class="empty-icon">📁</div>项目 <strong>${esc(state.project)}</strong> 中暂无关联配置<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">在左侧类型列表中找到需要的 Skill/Agent 等<br>点击详情页中的 <strong>📁 关联到项目</strong> 即可添加<br><br><span style="font-size:10px">仅记元数据引用，不复制文件</span></div></div>`;
+        } else if (state.pack) {
+            panel.innerHTML = `<div class="empty"><div class="empty-icon">📦</div>配置包 <strong>${esc(state.pack)}</strong> 中暂无配置<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">在左侧类型列表中找到需要的 Skill/Agent 等<br>点击详情页中的 <strong>📦 加到包</strong> 即可添加</div></div>`;
+        } else {
+            panel.innerHTML = `<div class="empty">没有找到匹配项<div style="font-size:12px;color:var(--text-secondary)">试试其他搜索词或清除筛选</div></div>`;
+        }
+        return;
+    }
+    panel.innerHTML = state.items.map(item => {
+        const sel = state.selected && state.selected.type===item.type && state.selected.name===item.name;
+        return `<div class="list-item${sel?' selected':''}" data-type="${item.type}" data-name="${esc_attr(item.name)}" role="option" aria-selected="${sel}" onclick="selectItemSafe('${item.type}','${esc_js(item.name)}')">
+            <div class="item-header">
+                <span class="status-dot ${item.status}" title="${item.status==='active'?'活跃':'隔离'}"></span>
+                <span class="item-name">${esc(item.name)}</span>
+                <span class="source-tag ${item.source}">${item.source}</span>
+            </div>
+            ${item.description?`<div class="item-desc">${esc(item.description.substring(0,80))}</div>`:''}
+        </div>`;
+    }).join('');
+    applySourceStyles();
+    // Scroll selected into view
+    const selEl = panel.querySelector('.list-item.selected');
+    if (selEl) selEl.scrollIntoView({ block: 'nearest' });
+}
+
+// --- Detail ---
+function renderDetail(item) {
+    // Remove workflow fullscreen class when showing non-workflow items
+    if (item.type !== 'workflow') $('#detailPanel').classList.remove('wf-active');
+    const toLabel = item.status==='active'?'隔离区':'活跃区';
+    const toStatus = item.status==='active'?'archived':'active';
+    const content = item.content_preview||'';
+    const isReadOnly = item.type==='mcp' || item.type==='tool';
+    const isMcpDesc = item.type==='mcp' || item.type==='workflow';
+    const isWorkflow = item.type==='workflow';
+    $('#detailPanel').innerHTML = `
+        <div class="detail-section"><h3>详情</h3>
+            <div class="detail-row"><span class="detail-label">名称</span>${esc(item.name)}</div>
+            <div class="detail-row"><span class="detail-label">类型</span>${item.type}</div>
+            <div class="detail-row"><span class="detail-label">来源</span><span class="source-tag ${item.source}">${item.source}</span></div>
+            ${!isReadOnly?`<div class="detail-row"><span class="detail-label">状态</span><span class="status-dot ${item.status}" style="display:inline-block"></span> ${item.status==='active'?'活跃':'隔离'}</div>`:''}
+        </div>
+        <div class="detail-section"><h3>${isReadOnly?'配置文件':'路径'}</h3><div class="detail-path">${esc(item.path)}</div></div>
+        <div class="detail-section"><h3>描述</h3>
+            ${isMcpDesc?`<textarea id="editDesc" style="width:100%;min-height:48px;font-size:13px;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-secondary);color:var(--text);resize:vertical;font-family:inherit;line-height:1.5">${esc(item.description||'')}</textarea>`
+            :`<div style="font-size:14px;line-height:1.5">${esc(item.description||'无描述')}</div>`}
+        </div>
+        ${isWorkflow?`<div class="detail-section"><h3>工作流编辑器</h3><div class="wf-canvas-wrap" id="wfCanvasWrap"><div class="loading"><div class="spinner"></div>加载画布...</div></div></div>`
+        :isMcpDesc?`<div class="detail-section"><h3>Server 配置</h3><pre class="preview-box">${esc(content)}</pre></div>`
+        :isReadOnly?`<div class="detail-section"><h3>详情</h3><pre class="preview-box">${esc(content)}</pre></div>`
+        :`<div class="detail-section"><h3>内容编辑</h3><textarea id="editContent" style="width:100%;min-height:300px;font-family:'Cascadia Code','Fira Code',monospace;font-size:12px;padding:12px;border:1px solid var(--border);border-radius:4px;resize:vertical;background:var(--bg-secondary);color:var(--text);line-height:1.5;tab-size:2">${esc(content)}</textarea></div>`}
+        <div class="actions">
+            ${isMcpDesc?`<button class="btn primary" id="btnSaveDesc">💾 保存描述</button>`:''}
+            ${isWorkflow?`<button class="btn primary" id="btnWfSave">💾 保存</button><button class="btn" id="btnFitView">⊡ 适应画布</button><button class="btn" id="btnWfFullscreen">⛶ 展开全屏</button><button class="btn" id="btnWfDelete" style="color:var(--color-archived)">🗑 删除</button>`:''}
+            ${!isReadOnly && !isWorkflow?`<button class="btn primary" id="btnSave">💾 保存</button>`:''}
+            ${!isReadOnly && !isWorkflow?`<button class="btn primary" id="btnMove">↗ 移到${toLabel}</button>`:''}
+            ${!isReadOnly && !isWorkflow && state.pack?`<button class="btn" id="btnRemoveFromPack" style="color:var(--color-archived)">📤 从包中移除</button>`:''}
+            ${!isReadOnly && !isWorkflow && !state.pack?`<button class="btn" id="btnAddToProject">📁 关联到项目</button>
+            <button class="btn" id="btnAddToPack">📦 加到包</button>`:''}
+            <button class="btn" id="btnCopy">📋 复制路径</button>
+        </div>`;
+    // MCP save description
+    const editDesc = $('#editDesc');
+    if (editDesc) {
+        $('#btnSaveDesc').onclick = async () => {
+            const btn = $('#btnSaveDesc'); btn.disabled = true; btn.textContent = '保存中...';
+            try {
+                const r = await fetch(`${API}/api/item/${item.type}s/${encodeURIComponent(item.name)}`, {
+                    method:'PUT', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({description: editDesc.value})
+                });
+                const data = await r.json();
+                showToast(data.message, data.success?'success':'error');
+                if (data.success) { item.description = editDesc.value; state.selected = item; }
+            } catch(e) { showToast('保存失败: '+e.message, 'error'); }
+            btn.disabled = false; btn.textContent = '💾 保存描述';
+        };
+    }
+    // Save button (for non-MCP)
+    const editEl = $('#editContent');
+    if (editEl) {
+        $('#btnSave').onclick = async () => {
+            const btn = $('#btnSave'); btn.disabled = true; btn.textContent = '保存中...';
+            try {
+                const r = await fetch(`${API}/api/item/${item.type}s/${encodeURIComponent(item.name)}`, {
+                    method:'PUT', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({content: editEl.value})
+                });
+                const data = await r.json();
+                showToast(data.message, data.success?'success':'error');
+                if (data.success) { item.content_preview = editEl.value; state.selected = item; }
+            } catch(e) { showToast('保存失败: '+e.message, 'error'); }
+            btn.disabled = false; btn.textContent = '💾 保存';
+        };
+        editEl.addEventListener('keydown', e => {
+            if ((e.ctrlKey||e.metaKey) && e.key==='s') { e.preventDefault(); $('#btnSave').click(); }
+        });
+    }
+    // Move button (not for MCP or workflow)
+    const btnMove = $('#btnMove');
+    if (btnMove) btnMove.onclick = () => showConfirm(item, toStatus);
+    const btnAddProj = $('#btnAddToProject');
+    if (btnAddProj) btnAddProj.onclick = () => addToProject(item);
+    const btnAddPack = $('#btnAddToPack');
+    if (btnAddPack) btnAddPack.onclick = () => addToPack(item);
+    const btnRemovePack = $('#btnRemoveFromPack');
+    if (btnRemovePack) btnRemovePack.onclick = () => removeFromPack(item);
+    $('#btnCopy').onclick = () => {
+        navigator.clipboard.writeText(item.path);
+        showToast('已复制路径', 'success');
+    };
+
+    // Workflow canvas init
+    if (isWorkflow && item.raw_content) {
+        initWorkflowEditor(item);
+    }
+
+    applySourceStyles();
+}
+
+function showConfirm(item, toStatus) {
+    const label = toStatus==='archived'?'隔离区':'活跃区';
+    const ov = document.createElement('div');
+    ov.className = 'overlay';
+    ov.innerHTML = `<div class="dialog"><p>将 <strong>${esc(item.name)}</strong> 移到${label}？</p><div class="dialog-actions"><button class="btn" id="btnCancel">取消</button><button class="btn primary" id="btnConfirm">确认</button></div></div>`;
+    document.body.appendChild(ov);
+    ov.querySelector('#btnCancel').onclick = () => ov.remove();
+    ov.querySelector('#btnConfirm').onclick = async () => { ov.remove(); await doMove(item, toStatus); };
+}
+
+async function doMove(item, toStatus) {
+    const btn = $('#btnMove'); if (btn) btn.disabled = true;
+    try {
+        const data = await fetchJSON(`${API}/api/move`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({type:item.type,name:item.name,to:toStatus})
+        });
+        showToast(data.message, data.success?'success':'error');
+        if (data.success) { state.selected = null; await Promise.all([loadItems(), loadStats()]); }
+    } catch(e) {
+        showToast('移动失败: '+e.message, 'error');
+    }
+    if (btn) btn.disabled = false;
+}
+
+// --- Stats bar ---
+function renderStats() {
+    if (state.project) { renderProjectStats(); return; }
+    if (!state.stats) return;
+    let total=0,ac=0,ar=0;
+    Object.values(state.stats).forEach(st => { ac+=st.active||0; ar+=st.archived||0; total+=(st.active||0)+(st.archived||0); });
+    const unk = state.items.filter(i=>i.source==='unknown').length;
+    $('#statusbar').innerHTML = `共 ${total} 项 &middot; 活跃 ${ac} &middot; 隔离 ${ar}${unk?` &middot; <span class="warn">未知来源 ${unk}</span>`:''}`;
+}
+
+// --- Data loading ---
+function maybeLeaveWorkflow(action) {
+    if (WF.isDirty && WF.isDirty() && WF.canvasWrap && WF.canvasWrap.innerHTML) {
+        if (confirm('当前工作流有未保存的修改。\n确定=放弃修改并离开\n取消=留在当前页面')) {
+            WF.destroy();
+            action();
+        }
+    } else {
+        if (WF.canvasWrap) WF.destroy();
+        action();
+    }
+}
+
+async function loadItems() {
+    $('#listPanel').innerHTML = '<div class="loading"><div class="spinner"></div>加载中...</div>';
+    try {
+        const p = new URLSearchParams({ type: state.type+'s' });
+        if (state.source) p.set('source', state.source);
+        if (state.wfMode) p.set('source', state.wfMode);
+        if (state.status) p.set('status', state.status);
+        if (state.search) p.set('search', state.search);
+        state.items = await fetchJSON(`${API}/api/items?${p}`);
+        renderList();
+        renderStats();
+    } catch(e) {
+        $('#listPanel').innerHTML = `<div class="error-state">加载失败<div style="font-size:12px">${e.message}</div><button class="btn" onclick="loadItems()">重试</button></div>`;
+    }
+}
+
+async function selectItemSafe(type, name) {
+    if (WF.isDirty && WF.isDirty() && WF.canvasWrap && WF.canvasWrap.innerHTML && state.selected && state.selected.type === 'workflow') {
+        if (!confirm('当前工作流有未保存的修改。\n确定=放弃修改并继续\n取消=留在此页')) return;
+    }
+    selectItem(type, name);
+}
+
+async function selectItem(type, name) {
+    const cached = state.items.find(i => i.type===type && i.name===name);
+    if (cached) { state.selected = cached; renderDetail(cached); renderList(); return; }
+    $('#detailPanel').innerHTML = '<div class="loading"><div class="spinner"></div>加载详情...</div>';
+    try {
+        const item = await fetchJSON(`${API}/api/item/${type}s/${encodeURIComponent(name)}`);
+        if (item) { state.selected = item; renderDetail(item); renderList(); }
+        else { $('#detailPanel').innerHTML = '<div class="empty">未找到该项目</div>'; }
+    } catch(e) {
+        $('#detailPanel').innerHTML = `<div class="error-state">加载详情失败<div style="font-size:12px">${e.message}</div><button class="btn" onclick="selectItemSafe('${type}','${name}')">重试</button></div>`;
+    }
+}
+
+async function loadStats() {
+    try { state.stats = await fetchJSON(`${API}/api/stats`); renderSidebar(); renderStats(); }
+    catch(e) { console.error('loadStats failed:', e); }
+}
+
+// --- Toast ---
+let toastTimer;
+function showToast(msg, type) {
+    const t = $('#toast'); t.textContent = msg; t.className = `toast ${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.className = 'toast', 2500);
+}
+
+// --- Keyboard ---
+document.addEventListener('keydown', e => {
+    if ((e.ctrlKey||e.metaKey) && e.key==='k') { e.preventDefault(); $('#search').focus(); }
+    if (e.key==='Escape' && document.activeElement===$('#search')) {
+        $('#search').value = ''; state.search = '';
+        if (state.project) loadProjectItems();
+        else if (state.pack) loadPackItems();
+        else loadItems();
+    }
+});
+
+// --- Search ---
+function applyLocalFilter() {
+    if (!state._allItems) return;
+    const q = state.search.toLowerCase();
+    state.items = q ? state._allItems.filter(i =>
+        i.name.toLowerCase().includes(q) || (i.description||'').toLowerCase().includes(q)
+    ) : [...state._allItems];
+    renderList();
+}
+
+$('#search').addEventListener('input', () => {
+    clearTimeout(state.timer);
+    state.timer = setTimeout(() => {
+        state.search = $('#search').value.trim();
+        state.selected = null;
+        if (state.project || state.pack) {
+            applyLocalFilter();
+        } else {
+            loadItems();
+        }
+    }, 300);
+});
+
+// --- Init ---
+loadStats(); loadItems(); loadProjects(); loadPacks();
+
+// ============================================================
+// Workflow Editor Engine (Phase 1: Canvas Kernel)
+// ============================================================
+const WF = {
+    nodes: [],
+    edges: [],
+    selectedId: null,
+    mode: 'auto',
+    slug: '',
+    wfName: '',
+    description: '',
+
+    // SVG refs
+    svg: null,
+    viewport: null,
+    edgesGroup: null,
+    nodesGroup: null,
+    tempEdge: null,
+    canvasWrap: null,
+
+    // Viewport
+    panX: 0, panY: 0, zoom: 1,
+    minZoom: 0.2, maxZoom: 2.5,
+
+    // Interaction state
+    dragging: null,
+    drawing: null,
+    panning: null,
+
+    // Undo/Redo
+    undoStack: [], redoStack: [], maxUndo: 50,
+    nextId: 1,
+
+    // --- Init ---
+    init(container, data) {
+        this.destroy();
+        this.canvasWrap = container;
+        this.nodes = (data.nodes || []).map(n => ({...n}));
+        this.edges = (data.edges || []).map(e => ({...e}));
+        this.mode = data.mode || 'auto';
+        this.slug = data.slug || '';
+        this.wfName = data.name || '';
+        this.description = data.description || '';
+        this.selectedId = null;
+        this.undoStack = []; this.redoStack = [];
+        this.panX = 0; this.panY = 0; this.zoom = 1;
+
+        const maxN = Math.max(0, ...this.nodes.map(n => parseInt(String(n.id).replace(/[^0-9]/g,''))||0));
+        const maxE = Math.max(0, ...this.edges.map(e => parseInt(String(e.id).replace(/[^0-9]/g,''))||0));
+        this.nextId = Math.max(maxN, maxE) + 1;
+
+        container.innerHTML = `
+            <div class="wf-toolbar">
+                <span class="wf-title">${esc(this.wfName||this.slug)}</span>
+                <span class="wf-mode-badge ${this.mode}">${this.mode==='step'?'Step 阶段门禁':'Auto 自动编排'}</span>
+                <span class="wf-spacer"></span>
+                <span class="wf-status" id="wfStatus"></span>
+                <button class="btn primary" id="btnWfSaveCanvas" style="font-size:11px;padding:4px 10px">💾 保存</button>
+                <button class="btn" id="btnWfExportCanvas" style="font-size:11px;padding:4px 8px">📤 导出</button>
+                <button class="btn" id="btnWfCopyCanvas" style="font-size:11px;padding:4px 8px">📋 复制</button>
+                <button class="btn" id="btnWfDeleteCanvas" style="color:var(--color-archived);font-size:11px;padding:4px 8px">🗑 删除</button>
+            </div>
+            <div class="wf-main">
+                <div class="wf-sidebar" id="wfSidebar">
+                    <div class="wf-sidebar-section">
+                        <div class="wf-sidebar-label">节点类型</div>
+                        <button class="wf-node-type-btn" data-add="agent">📋 节点</button>
+                        <button class="wf-node-type-btn" data-add="gate">🔷 门禁</button>
+                        <button class="wf-node-type-btn" data-add="hook">⚡ 钩子</button>
+                    </div>
+                    <div class="wf-sidebar-section" style="flex:1;display:flex;flex-direction:column;min-height:0;padding-bottom:0">
+                        <div class="wf-sidebar-tabs">
+                            <button class="wf-tab active" data-tab="agents">Agents</button>
+                            <button class="wf-tab" data-tab="skills">Skills</button>
+                            <button class="wf-tab" data-tab="commands">Commands</button>
+                        </div>
+                        <div class="wf-sidebar-list" id="wfSidebarList">
+                            <div style="color:var(--text-secondary);font-size:11px;padding:8px">加载中...</div>
+                        </div>
+                        <div style="font-size:10px;color:var(--text-secondary);padding:6px 0 10px;line-height:1.3;flex-shrink:0">点击列表项添加到画布。<br>拖拽节点手柄创建连线。</div>
+                    </div>
+                </div>
+                <div class="wf-canvas-wrap" id="wfCanvas">
+                    <svg id="wfSvg">
+                        <defs>
+                            <marker id="wfArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+                            </marker>
+                        </defs>
+                        <g id="wfViewport">
+                            <g id="wfEdgesLayer"></g>
+                            <g id="wfNodesLayer"></g>
+                            <path id="wfTempEdge" class="wf-edge-temp" d="" style="display:none"/>
+                        </g>
+                    </svg>
+                    <div class="wf-controls">
+                        <button onclick="WF.zoomBy(0.15)" title="放大">+</button>
+                        <button onclick="WF.zoomBy(-0.15)" title="缩小">−</button>
+                        <button onclick="WF.fitView()" title="适应画布">⊡</button>
+                    </div>
+                    <div class="wf-props-overlay" id="wfPropsOverlay">
+                        <div class="wf-props-header">
+                            <span id="wfPropsTitle">节点属性</span>
+                            <div style="display:flex;gap:4px">
+                                <button id="wfPropsDelete" title="删除" style="color:var(--color-archived)">🗑</button>
+                                <button id="wfPropsClose" title="关闭">✕</button>
+                            </div>
+                        </div>
+                        <div class="wf-props-body" id="wfPropsBody"></div>
+                    </div>
+                </div>
+            </div>`;
+
+        this.svg = container.querySelector('#wfSvg');
+        this.viewport = container.querySelector('#wfViewport');
+        this.edgesGroup = container.querySelector('#wfEdgesLayer');
+        this.nodesGroup = container.querySelector('#wfNodesLayer');
+        this.tempEdge = container.querySelector('#wfTempEdge');
+        this.sidebarEl = container.querySelector('#wfSidebar');
+        this.propsOverlay = container.querySelector('#wfPropsOverlay');
+        this.propsTitle = container.querySelector('#wfPropsTitle');
+        this.propsBody = container.querySelector('#wfPropsBody');
+        this.propsClose = container.querySelector('#wfPropsClose');
+
+        // Bind delete button (always active, not tied to renderProps)
+        const delBtn = container.querySelector('#wfPropsDelete');
+        if (delBtn) delBtn.onclick = () => {
+            if (this.selectedId) {
+                this.deleteSelected();
+                this.propsOverlay.classList.remove('open');
+                this._lastPropsNode = null;
+            }
+        };
+
+        // Make overlay draggable by header
+        const header = container.querySelector('.wf-props-header');
+        if (header) {
+            header.addEventListener('mousedown', e => {
+                if (e.target.tagName === 'BUTTON') return;
+                e.preventDefault();
+                const overlay = this.propsOverlay;
+                const rect = overlay.getBoundingClientRect();
+                const sx = e.clientX, sy = e.clientY;
+                const ol = rect.left, ot = rect.top;
+                const pr = overlay.parentElement.getBoundingClientRect();
+                const onMove = ev => {
+                    overlay.style.right = 'auto'; overlay.style.left = (ol - pr.left + ev.clientX - sx) + 'px';
+                    overlay.style.top = (ot - pr.top + ev.clientY - sy) + 'px';
+                };
+                const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+        }
+
+        this.bindEvents();
+        this.bindSidebarEvents();
+        this.loadSidebarItems('agents');
+        this.preloadRefs();
+        this.pushSnapshot();
+        this.render();
+    },
+
+    // --- Event binding ---
+    bindEvents() {
+        // Abort previous listeners if re-init
+        if (this._abort) this._abort.abort();
+        this._abort = new AbortController();
+        const ac = this._abort;
+        const wrap = this.canvasWrap;
+        wrap.addEventListener('mousedown', e => this.onMouseDown(e), {signal: ac.signal});
+        // Prevent browser auto-scroll on middle-click
+        wrap.addEventListener('auxclick', e => e.preventDefault(), {signal: ac.signal});
+        wrap.addEventListener('mousemove', e => this.onMouseMove(e), {signal: ac.signal});
+        document.addEventListener('mouseup', e => this.onMouseUp(e), {signal: ac.signal});
+        wrap.addEventListener('wheel', e => { e.preventDefault(); this.onWheel(e); }, {passive:false, signal: ac.signal});
+        wrap.addEventListener('dblclick', e => this.onDblClick(e), {signal: ac.signal});
+        document.addEventListener('keydown', e => this.onKeyDown(e), {signal: ac.signal});
+    },
+
+    // --- Sidebar ---
+    bindSidebarEvents() {
+        if (!this.sidebarEl) return;
+
+        // Node type buttons
+        this.sidebarEl.querySelectorAll('.wf-node-type-btn[data-add]').forEach(el => {
+            el.onclick = () => {
+                const type = el.dataset.add;
+                const rect = this.svg.getBoundingClientRect();
+                const cx = (rect.width/2 - this.panX) / this.zoom;
+                const cy = (rect.height/2 - this.panY) / this.zoom;
+                this.addNode(type, cx - 100, cy - 30);
+            };
+        });
+
+        // Tab switching
+        this.sidebarEl.querySelectorAll('.wf-tab').forEach(tab => {
+            tab.onclick = () => {
+                this.sidebarEl.querySelectorAll('.wf-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                this.loadSidebarItems(tab.dataset.tab);
+            };
+        });
+    },
+
+    async loadSidebarItems(category) {
+        const listEl = this.canvasWrap.querySelector('#wfSidebarList');
+        if (!listEl) return;
+        listEl.innerHTML = '<div style="color:var(--text-secondary);font-size:11px;padding:8px">加载中...</div>';
+
+        const typeMap = { agents: 'agent', skills: 'skill', commands: 'command' };
+        const iconMap = { agents: '🤖', skills: '✨', commands: '⌨' };
+        const apiType = category; // "agents", "skills", "commands"
+        const itemType = typeMap[category] || 'agent';
+        const icon = iconMap[category] || '•';
+
+        try {
+            const items = await fetchJSON(`${API}/api/items?type=${apiType}&status=active`);
+            const filtered = items.filter(i => i.type === itemType);
+            if (!filtered.length) {
+                listEl.innerHTML = '<div style="color:var(--text-secondary);font-size:11px;padding:8px">无可用项</div>';
+                return;
+            }
+            listEl.innerHTML = filtered.map(i => `
+                <div class="wf-list-item" data-slug="${esc_attr(i.name)}">
+                    <span class="item-icon">${icon}</span>
+                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(i.name)}</span>
+                </div>`).join('');
+
+            listEl.querySelectorAll('.wf-list-item').forEach(el => {
+                el.onclick = () => {
+                    const slug = el.dataset.slug;
+                    const rect = this.svg.getBoundingClientRect();
+                    const cx = (rect.width/2 - this.panX) / this.zoom;
+                    const cy = (rect.height/2 - this.panY) / this.zoom;
+                    const id = 'n' + (this.nextId++);
+                    this.nodes.push({
+                        id, type: 'agent', label: slug, position: {x: cx - 100, y: cy - 30},
+                        agentId: itemType === 'agent' ? slug : null,
+                        skillIds: itemType === 'skill' ? [slug] : [],
+                        permissions: this.mode === 'step' ? {allows: [], blocks: []} : undefined,
+                        produces: this.mode === 'step' ? [] : undefined, hooks: []
+                    });
+                    this.selectedId = id;
+                    this.pushSnapshot();
+                    this.render();
+                };
+            });
+        } catch(e) {
+            listEl.innerHTML = '<div style="color:var(--color-archived);font-size:11px;padding:8px">加载失败</div>';
+        }
+    },
+
+    async preloadRefs() {
+        try {
+            const [agents, skills] = await Promise.all([
+                fetchJSON(`${API}/api/items?type=agents&status=active`),
+                fetchJSON(`${API}/api/items?type=skills&status=active`)
+            ]);
+            WF._cachedAgents = agents.filter(i => i.type === 'agent').map(i => ({slug: i.name, name: i.name}));
+            WF._cachedSkills = skills.filter(i => i.type === 'skill').map(i => ({slug: i.name, name: i.name}));
+        } catch(e) { /* silent */ }
+    },
+
+    // --- Viewport helpers ---
+    screenToCanvas(sx, sy) {
+        const rect = this.svg.getBoundingClientRect();
+        return {
+            x: (sx - rect.left - this.panX) / this.zoom,
+            y: (sy - rect.top - this.panY) / this.zoom
+        };
+    },
+
+    updateViewport() {
+        this.viewport.setAttribute('transform', `translate(${this.panX},${this.panY}) scale(${this.zoom})`);
+    },
+
+    zoomBy(delta) {
+        const nz = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom + delta));
+        if (nz !== this.zoom) {
+            this.zoom = nz;
+            this.updateViewport();
+        }
+    },
+
+    onWheel(e) {
+        const delta = e.deltaY > 0 ? -0.08 : 0.08;
+        this.zoomBy(delta);
+    },
+
+    fitView() {
+        if (!this.nodes.length) { this.panX = 100; this.panY = 100; this.zoom = 1; this.updateViewport(); return; }
+        const xs = this.nodes.map(n => n.position.x);
+        const ys = this.nodes.map(n => n.position.y);
+        const minX = Math.min(...xs) - 100, maxX = Math.max(...xs) + 220;
+        const minY = Math.min(...ys) - 60, maxY = Math.max(...ys) + 120;
+        const w = maxX - minX, h = maxY - minY;
+        const rect = this.svg.getBoundingClientRect();
+        const sx = rect.width / w, sy = rect.height / h;
+        this.zoom = Math.max(0.3, Math.min(1.5, Math.min(sx, sy)));
+        this.panX = (rect.width - w * this.zoom) / 2 - minX * this.zoom;
+        this.panY = (rect.height - h * this.zoom) / 2 - minY * this.zoom;
+        this.updateViewport();
+    },
+
+    // --- Mouse handlers ---
+    onMouseDown(e) {
+        // Middle-click → always pan
+        if (e.button === 1) {
+            e.preventDefault();
+            if (e.target.closest('#wfSidebar')) return;
+            this.panning = { startX: e.clientX, startY: e.clientY, startPanX: this.panX, startPanY: this.panY };
+            return;
+        }
+        if (e.button !== 0) return;
+        // Skip clicks on sidebar or props overlay
+        if (e.target.closest('#wfSidebar') || e.target.closest('#wfPropsOverlay')) return;
+        const canvasWrap = this.canvasWrap.querySelector('#wfCanvas');
+        if (!canvasWrap) return;
+        const target = e.target;
+
+        // Click on node handle → start edge drawing
+        if (target.classList.contains('node-handle')) {
+            e.stopPropagation();
+            const nodeId = target.dataset.nodeId;
+            const node = this.nodes.find(n => n.id === nodeId);
+            if (!node) return;
+            const isInput = target.dataset.handle === 'input';
+            if (isInput) return; // only draw FROM output handles
+            const cx = node.position.x + 200;
+            const cy = node.position.y + 30;
+            this.drawing = { fromNodeId: nodeId, fromX: cx, fromY: cy, mouseX: cx, mouseY: cy };
+            return;
+        }
+
+        // Click on node delete (×) button — handle before node-body check,
+        // because the node-body handler calls render() which destroys DOM
+        // via innerHTML before the click event can fire.
+        // Use closest('[data-del]') because classList.contains can be
+        // unreliable on SVG elements in some browsers.
+        const delBtn = target.closest('[data-del]');
+        if (delBtn) {
+            e.stopPropagation();
+            e.preventDefault();
+            const nid = delBtn.dataset.del;
+            if (nid) {
+                this.selectedId = nid;
+                this.deleteSelected();
+                this.propsOverlay.classList.remove('open');
+                this._lastPropsNode = null;
+            }
+            return;
+        }
+
+        // Click on node body → start drag or select
+        const nodeEl = target.closest('.wf-node');
+        if (nodeEl) {
+            e.stopPropagation();
+            const nodeId = nodeEl.dataset.nodeId;
+            this.selectedId = nodeId;
+            this.render();
+            const node = this.nodes.find(n => n.id === nodeId);
+            if (node) {
+                this.dragging = { nodeId, startX: e.clientX, startY: e.clientY, origX: node.position.x, origY: node.position.y };
+            }
+            return;
+        }
+
+        // Click on edge (visible path or invisible hit area) → select edge
+        const edgeEl = target.closest('[data-edge-id]');
+        if (edgeEl) {
+            e.stopPropagation();
+            this.selectedId = edgeEl.dataset.edgeId;
+            this.render();
+            return;
+        }
+
+        // Click on blank canvas → start pan (or toggle workflow props)
+        this.panning = { startX: e.clientX, startY: e.clientY, startPanX: this.panX, startPanY: this.panY, wasBlank: true };
+    },
+
+    onMouseMove(e) {
+        // Node drag — only update transform, no full render
+        if (this.dragging) {
+            const node = this.nodes.find(n => n.id === this.dragging.nodeId);
+            if (node) {
+                const dx = (e.clientX - this.dragging.startX) / this.zoom;
+                const dy = (e.clientY - this.dragging.startY) / this.zoom;
+                node.position.x = this.dragging.origX + dx;
+                node.position.y = this.dragging.origY + dy;
+                const el = this.nodesGroup.querySelector(`[data-node-id="${this.dragging.nodeId}"]`);
+                if (el) el.setAttribute('transform', `translate(${node.position.x},${node.position.y})`);
+                // Also update edges touching this node
+                this.updateEdgesForNode(this.dragging.nodeId);
+            }
+            return;
+        }
+
+        // Edge drawing
+        if (this.drawing) {
+            this.drawing.mouseX = e.clientX;
+            this.drawing.mouseY = e.clientY;
+            this.renderTempEdge();
+            return;
+        }
+
+        // Panning
+        if (this.panning) {
+            this.panX = this.panning.startPanX + (e.clientX - this.panning.startX);
+            this.panY = this.panning.startPanY + (e.clientY - this.panning.startY);
+            this.updateViewport();
+        }
+    },
+
+    onMouseUp(e) {
+        // Finish node drag — full render + snapshot
+        if (this.dragging) {
+            const moved = Math.abs(e.clientX - this.dragging.startX) + Math.abs(e.clientY - this.dragging.startY);
+            this.dragging = null;
+            if (moved > 3) this.pushSnapshot();
+            this.render();
+            return;
+        }
+
+        // Finish edge drawing
+        if (this.drawing) {
+            const target = document.elementFromPoint(e.clientX, e.clientY);
+            const handle = target && target.closest && target.closest('.node-handle[data-handle="input"]');
+            if (handle) {
+                const toNodeId = handle.dataset.nodeId;
+                if (toNodeId && toNodeId !== this.drawing.fromNodeId &&
+                    !this.edges.some(ed => ed.from === this.drawing.fromNodeId && ed.to === toNodeId)) {
+                    this.edges.push({
+                        id: 'e' + (this.nextId++),
+                        from: this.drawing.fromNodeId,
+                        to: toNodeId,
+                        condition: this.mode === 'auto' ? 'auto' : 'manual'
+                    });
+                    this.pushSnapshot();
+                }
+            }
+            this.drawing = null;
+            this.tempEdge.style.display = 'none';
+            this.render();
+            return;
+        }
+
+        // Finish panning
+        if (this.panning) {
+            const wasBlank = this.panning.wasBlank;
+            const moved = Math.abs(e.clientX - this.panning.startX) + Math.abs(e.clientY - this.panning.startY);
+            this.panning = null;
+            // If barely moved on blank canvas, toggle workflow props
+            if (wasBlank && moved < 4) {
+                if (this.selectedId === null && this.propsOverlay && this.propsOverlay.classList.contains('open')) {
+                    this.propsOverlay.classList.remove('open');
+                    this._lastPropsNode = null;
+                }
+                this.selectedId = null;
+                this._lastPropsNode = null;
+                this.render();
+            }
+            return;
+        }
+    },
+
+    onDblClick(e) {
+        if (e.target.closest('#wfSidebar') || e.target.closest('#wfPropsOverlay')) return;
+        if (!e.target.closest('.wf-node') && !e.target.closest('[data-edge-id]')) {
+            this.propsOverlay.classList.remove('open');
+            this.selectedId = null;
+            this._lastPropsNode = null;
+            this.render();
+        }
+    },
+
+    onKeyDown(e) {
+        if (!this.canvasWrap || !this.canvasWrap.contains(document.activeElement) && document.activeElement !== document.body) return;
+
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); this.undo(); }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); this.redo(); }
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            const btnSave = document.querySelector('#btnWfSave');
+            if (btnSave) btnSave.click();
+            return;
+        }
+
+        if (e.key === 'f' || (e.ctrlKey && e.key === '0')) {
+            e.preventDefault();
+            this.fitView();
+            return;
+        }
+
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            const ae = document.activeElement;
+            const isInput = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT' || ae.isContentEditable);
+            if (this.selectedId && !isInput) {
+                e.preventDefault();
+                this.deleteSelected();
+            }
+        }
+        if (e.key === 'Escape') {
+            if (this.drawing) { this.drawing = null; if (this.tempEdge) this.tempEdge.style.display = 'none'; }
+            this.propsOverlay.classList.remove('open');
+            this.selectedId = null; this._lastPropsNode = null;
+            this.render();
+        }
+    },
+
+    // --- Rendering ---
+    render() {
+        if (!this.nodesGroup || !this.edgesGroup) return;
+        this.renderNodes();
+        this.renderEdges();
+        this.renderProps();
+        this.updateViewport();
+        this.updateStatus();
+    },
+
+    renderProps() {
+        if (!this.propsOverlay) return;
+        const selNode = this.nodes.find(n => n.id === this.selectedId);
+        const selEdge = this.edges.find(e => e.id === this.selectedId);
+
+        // Close and delete buttons
+        if (this.propsClose) this.propsClose.onclick = () => {
+            this.propsOverlay.classList.remove('open');
+            this.selectedId = null; this._lastPropsNode = null; this.render();
+        };
+        // --- Edge properties ---
+        if (selEdge) {
+            if (this._lastPropsNode === selEdge.id && this.propsOverlay.classList.contains('open')) return;
+            this._lastPropsNode = selEdge.id;
+            this.propsOverlay.classList.add('open');
+            const e = selEdge;
+            if (!e.condition) e.condition = 'auto';
+            const esc = c => e.condition === c ? ' active' : '';
+            const fromName = (this.nodes.find(n => n.id === e.from)||{}).label || e.from;
+            const toName = (this.nodes.find(n => n.id === e.to)||{}).label || e.to;
+            this.propsTitle.textContent = '🔗 连线属性';
+            this.propsBody.innerHTML = `
+                <div class="wf-field"><label>连接</label><div style="font-size:11px;color:var(--text-secondary)">${esc(fromName)} → ${esc(toName)}</div></div>
+                <div class="wf-field"><label>触发条件</label>
+                    <div class="wf-radios" id="wfEdgeCond">
+                        <button data-cond="auto" class="${esc('auto')}">自动</button>
+                        <button data-cond="manual" class="${esc('manual')}">手动</button>
+                        <button data-cond="expression" class="${esc('expression')}">表达式</button>
+                    </div>
+                </div>
+                <div class="wf-field" id="wfEdgeAuto" style="display:${e.condition==='auto'?'':'none'}"><label>自动检测规则</label><input id="wfEdgeAutoDetect" value="${esc_attr(e.autoDetect||'')}" placeholder="如: CONTEXT.md 存在 → 自动推进"></div>
+                <div class="wf-field" id="wfEdgeManual" style="display:${e.condition==='manual'?'':'none'}"><label>手动确认说明</label><input id="wfEdgeManualAdv" value="${esc_attr(e.manualAdvance||'')}" placeholder="如: 审查通过后手动确认"></div>
+                <div class="wf-field" id="wfEdgeExpr" style="display:${e.condition==='expression'?'':'none'}"><label>条件表达式</label><textarea id="wfEdgeExpression" rows="3" placeholder="如: review.score >= 8">${esc(e.expression||'')}</textarea></div>`;
+
+            const updateEdge = () => {
+                e.autoDetect = this.propsBody.querySelector('#wfEdgeAutoDetect')?.value || '';
+                e.manualAdvance = this.propsBody.querySelector('#wfEdgeManualAdv')?.value || '';
+                e.expression = this.propsBody.querySelector('#wfEdgeExpression')?.value || '';
+                this.renderEdges(); this.updateStatus();
+            };
+            this.propsBody.querySelector('#wfEdgeAutoDetect')?.addEventListener('input', updateEdge);
+            this.propsBody.querySelector('#wfEdgeManualAdv')?.addEventListener('input', updateEdge);
+            this.propsBody.querySelector('#wfEdgeExpression')?.addEventListener('input', updateEdge);
+            this.propsBody.querySelectorAll('#wfEdgeCond button').forEach(btn => {
+                btn.onclick = () => {
+                    e.condition = btn.dataset.cond;
+                    this.propsBody.querySelectorAll('#wfEdgeCond button').forEach(b => b.classList.toggle('active', b.dataset.cond === e.condition));
+                    this.propsBody.querySelector('#wfEdgeAuto').style.display = e.condition === 'auto' ? '' : 'none';
+                    this.propsBody.querySelector('#wfEdgeManual').style.display = e.condition === 'manual' ? '' : 'none';
+                    this.propsBody.querySelector('#wfEdgeExpr').style.display = e.condition === 'expression' ? '' : 'none';
+                    const el = this.propsBody.querySelector(e.condition === 'auto' ? '#wfEdgeAutoDetect' : e.condition === 'manual' ? '#wfEdgeManualAdv' : '#wfEdgeExpression');
+                    if (el) setTimeout(() => el.focus(), 50);
+                    updateEdge();
+                };
+            });
+            return;
+        }
+
+        // --- Workflow-level properties (blank canvas click) ---
+        if (!selNode) {
+            if (this._lastPropsNode === '__wf__' && this.propsOverlay.classList.contains('open')) return;
+            this._lastPropsNode = '__wf__';
+            this.propsOverlay.classList.add('open');
+            this.propsTitle.textContent = '⚙ 工作流属性';
+            this.propsBody.innerHTML = `
+                <div class="wf-field"><label>名称</label><input id="wfPropWfName" value="${esc_attr(this.wfName||'')}" placeholder="工作流名称"></div>
+                <div class="wf-field"><label>Slug</label><input id="wfPropWfSlug" value="${esc_attr(this.slug||'')}" placeholder="文件名标识"></div>
+                <div class="wf-field"><label>描述</label><textarea id="wfPropWfDesc" rows="3" placeholder="描述">${esc(this.description||'')}</textarea></div>
+                <div class="wf-field"><label>模式</label>
+                    <div class="wf-radios" id="wfModeToggle">
+                        <button data-mode="auto" class="${this.mode==='auto'?' active':''}">Auto 自动编排</button>
+                        <button data-mode="step" class="${this.mode==='step'?' active':''}">Step 阶段门禁</button>
+                    </div>
+                    <div style="font-size:10px;color:var(--text-secondary);margin-top:4px" id="wfModeHint"></div>
+                </div>`;
+
+            const updateWf = () => {
+                this.wfName = this.propsBody.querySelector('#wfPropWfName')?.value || '';
+                this.slug = this.propsBody.querySelector('#wfPropWfSlug')?.value || '';
+                this.description = this.propsBody.querySelector('#wfPropWfDesc')?.value || '';
+                this.updateStatus();
+            };
+            this.propsBody.querySelector('#wfPropWfName').oninput = updateWf;
+            this.propsBody.querySelector('#wfPropWfSlug').oninput = updateWf;
+            this.propsBody.querySelector('#wfPropWfDesc').oninput = updateWf;
+
+            this.propsBody.querySelectorAll('#wfModeToggle button').forEach(btn => {
+                btn.onclick = () => {
+                    const newMode = btn.dataset.mode;
+                    if (newMode !== this.mode) {
+                        this.mode = newMode;
+                        if (newMode === 'step') {
+                            this.nodes.forEach(n => {
+                                if (n.type === 'agent') {
+                                    if (!n.permissions) n.permissions = {allows:[],blocks:[]};
+                                    if (!n.produces) n.produces = [];
+                                    if (!n.hooks) n.hooks = [];
+                                }
+                            });
+                        }
+                        this.propsBody.querySelectorAll('#wfModeToggle button').forEach(b => b.classList.toggle('active', b.dataset.mode === this.mode));
+                        const badge = this.canvasWrap.querySelector('.wf-mode-badge');
+                        if (badge) { badge.textContent = newMode === 'step' ? 'Step 阶段门禁' : 'Auto 自动编排'; badge.className = 'wf-mode-badge ' + newMode; }
+                        const hint = this.propsBody.querySelector('#wfModeHint');
+                        hint.textContent = newMode === 'auto' ? '⚠ Permissions/Produces 保留但 Auto 模式不使用' : '⚠ 已解锁 Gate/Hook 节点和 Permissions 编辑';
+                        // Show/hide Gate/Hook buttons in sidebar
+                        const gateBtn = this.sidebarEl.querySelector('.wf-node-type-btn[data-add="gate"]');
+                        const hookBtn = this.sidebarEl.querySelector('.wf-node-type-btn[data-add="hook"]');
+                        if (gateBtn) gateBtn.style.display = newMode === 'step' ? '' : 'none';
+                        if (hookBtn) hookBtn.style.display = newMode === 'step' ? '' : 'none';
+                        this.pushSnapshot();
+                    }
+                };
+            });
+            return;
+        }
+
+        // --- Node properties ---
+        // Skip rebuild if same node and panel already open
+        if (this._lastPropsNode === selNode.id && this.propsOverlay.classList.contains('open')) return;
+        this._lastPropsNode = selNode.id;
+        this.propsOverlay.classList.add('open');
+        const n = selNode;
+
+        if (n.type === 'agent') {
+            this.propsTitle.textContent = '📋 节点属性';
+            const currentSkills = n.skillIds || [];
+            const agents = (WF._cachedAgents||[]).map(a => `<option value="${esc_attr(a.slug)}"${n.agentId===a.slug?' selected':''}>${esc(a.name||a.slug)}</option>`).join('');
+            const skillChecks = (WF._cachedSkills||[]).map(s => {
+                const checked = currentSkills.includes(s.slug);
+                return `<label class="wf-skill-check"><input type="checkbox" value="${esc_attr(s.slug)}"${checked?' checked':''}> ${esc(s.name||s.slug)}</label>`;
+            }).join('');
+            // Permissions — predefined options + custom
+            const PERM_OPTIONS = ['Read', 'Write', 'Edit', 'Bash', 'Skill', 'WebFetch', 'WebSearch', 'TaskCreate', 'TaskUpdate', 'Glob', 'Grep', 'PushNotification', 'AskUserQuestion'];
+            // Dynamic suggestions: static patterns + auto-discovered Skills
+            const PERM_SUGGEST = [
+                'Write(*.md)', 'Write(*.java)', 'Write(*.py)', 'Write(*.json)', 'Write(*.ts)', 'Write(*.tsx)', 'Write(*.vue)',
+                'Edit(*.md)', 'Edit(*.java)', 'Edit(*.py)', 'Edit(*.ts)', 'Edit(*.tsx)', 'Edit(*.vue)', 'Edit(*.json)', 'Edit(*.yaml)',
+                'Bash(pytest)', 'Bash(mvn test)', 'Bash(gradle test)', 'Bash(python)', 'Bash(npm test)', 'Bash(npm run build)'
+            ];
+            // Auto-discover: add Skill(name) for every available skill
+            (WF._cachedSkills||[]).forEach(s => {
+                const p = `Skill(${s.slug})`;
+                if (!PERM_SUGGEST.includes(p)) PERM_SUGGEST.push(p);
+            });
+            const permAllows = n.permissions?.allows||[];
+            const permBlocks = n.permissions?.blocks||[];
+            const renderPermChecks = (list, prefix) => {
+                let h = '<div class="wf-perm-checks">';
+                PERM_OPTIONS.forEach(p => {
+                    const checked = list.includes(p) ? ' checked' : '';
+                    h += `<label class="wf-perm-check"><input type="checkbox" value="${p}" data-perm="${prefix}"${checked}> ${p}</label>`;
+                });
+                // Custom entries not in predefined list
+                const custom = list.filter(p => !PERM_OPTIONS.includes(p));
+                h += '</div><div class="wf-perm-custom">';
+                custom.forEach(p => {
+                    h += `<span class="wf-tag">${esc(p)}<button class="wf-tag-x" data-perm-val="${esc_attr(p)}" data-perm="${prefix}">×</button></span>`;
+                });
+                h += `<div style="display:flex;align-items:center;gap:4px;margin-top:4px"><input class="wf-perm-input" data-perm="${prefix}" placeholder="自定义…" style="font-size:10px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;width:140px"><button class="btn wf-perm-add-btn" data-perm="${prefix}" style="font-size:10px;padding:3px 8px">添加</button></div>`;
+                // Quick-fill suggestions
+                h += '<div class="wf-perm-suggest">';
+                PERM_SUGGEST.forEach(s => {
+                    h += `<button class="wf-perm-chip" data-perm="${prefix}" data-val="${esc_attr(s)}">${esc(s)}</button>`;
+                });
+                h += '</div>';
+                return h;
+            };
+            const produceTags = (n.produces||[]).map(p => `<span class="wf-tag">${esc(p)}<button class="wf-tag-x" data-produce="${esc_attr(p)}">×</button></span>`).join(' ');
+            const nodeHooks = (n.hooks||[]).map((h,i) => `<div class="wf-hook-row"><span style="font-size:10px;color:var(--text-secondary)">${h.timing==='onEnter'?'进入':'离开'}·${h.type}</span> <span style="flex:1;font-size:11px">${esc(h.value||'')}</span><button class="wf-hook-del" data-hook-idx="${i}">×</button></div>`).join('');
+
+            this.propsBody.innerHTML = `
+                <div class="wf-field"><label>节点类型</label><select id="wfPropType">
+                    <option value="agent" selected>📋 Agent 节点</option>
+                    <option value="gate">🔷 Gate 门禁</option>
+                    <option value="hook">⚡ Hook 钩子</option>
+                </select></div>
+                <div class="wf-field"><label>标签</label><input id="wfPropLabel" value="${esc_attr(n.label||'')}" placeholder="节点名称"></div>
+                <div class="wf-field"><label>Agent</label><select id="wfPropAgent"><option value="">未指定</option>${agents}</select></div>
+                <div class="wf-field"><label>Skills（多选）</label>
+                    <input id="wfSkillSearch" placeholder="搜索 Skill..." style="padding:5px 8px;font-size:11px;border:1px solid var(--border);border-radius:4px;outline:none;margin-bottom:4px" oninput="WF.filterSkillList()">
+                    <div class="wf-skill-list" id="wfSkillList">${skillChecks||'<span style="font-size:11px;color:var(--text-secondary)">无可用</span>'}</div>
+                </div>
+                ${this.mode==='step'?`
+                <div class="wf-field"><label>Permissions · Allows</label>${renderPermChecks(permAllows, 'allows')}</div>
+                <div class="wf-field"><label>Permissions · Blocks</label>${renderPermChecks(permBlocks, 'blocks')}</div>
+                <div class="wf-field"><label>Produces（产出文件）</label>
+                    <div style="display:flex;gap:4px"><input id="wfPropProducesAdd" placeholder="产出文件名" style="flex:1;font-size:11px"><button id="wfPropProducesBtn" class="btn" style="font-size:10px;padding:4px 8px">+添加</button></div>
+                    <div class="wf-tag-list" id="wfPropProducesList">${produceTags||'<span style="font-size:10px;color:var(--text-secondary)">无</span>'}</div>
+                </div>
+                <div class="wf-field"><label>Hooks</label>
+                    <div style="font-size:10px;color:var(--text-secondary);margin-bottom:4px">
+                        <select id="wfHookTiming" style="font-size:10px;padding:2px"><option value="onEnter">进入时</option><option value="onLeave">离开时</option></select>
+                        <select id="wfHookType" style="font-size:10px;padding:2px"><option value="shell">Shell</option><option value="agent">Agent</option></select>
+                        <input id="wfHookVal" placeholder="命令/agent名" style="font-size:10px;width:100px;padding:2px">
+                        <button id="wfHookAdd" class="btn" style="font-size:10px;padding:2px 6px">+</button>
+                    </div>
+                    <div class="wf-hook-list" id="wfHookList">${nodeHooks||'<span style="font-size:10px;color:var(--text-secondary)">无</span>'}</div>
+                </div>`:''}`;
+
+            // Type switch
+            const typeEl = this.propsBody.querySelector('#wfPropType');
+            if (typeEl) typeEl.onchange = () => {
+                if (typeEl.value !== n.type) { n.type = typeEl.value; this.renderProps(); }
+            };
+
+            const labelEl = this.propsBody.querySelector('#wfPropLabel');
+            const agentEl = this.propsBody.querySelector('#wfPropAgent');
+            const onChange = () => {
+                n.label = labelEl.value; n.agentId = agentEl.value || null;
+                const checks = this.propsBody.querySelectorAll('.wf-skill-check input[type=checkbox]');
+                n.skillIds = [...checks].filter(cb => cb.checked).map(cb => cb.value);
+                this.renderNodes(); this.updateStatus();
+            };
+            if (labelEl) labelEl.oninput = onChange;
+            if (agentEl) agentEl.onchange = onChange;
+            this.propsBody.querySelectorAll('.wf-skill-check input[type=checkbox]').forEach(cb => { cb.onchange = onChange; });
+
+            // Step-mode fields
+            if (this.mode === 'step') {
+                n.permissions = n.permissions || {allows:[],blocks:[]};
+                n.produces = n.produces || [];
+                n.hooks = n.hooks || [];
+                // Permissions
+                const addPermCustom = (prefix) => {
+                    const inp = this.propsBody.querySelector(`.wf-perm-input[data-perm="${prefix}"]`);
+                    const val = inp.value.trim();
+                    if (!val) return;
+                    const list = prefix === 'allows' ? n.permissions.allows : n.permissions.blocks;
+                    if (!list.includes(val)) { list.push(val); this._lastPropsNode = null; this.renderProps(); }
+                    inp.value = '';
+                };
+                this.propsBody.querySelectorAll('.wf-perm-check input[type=checkbox]').forEach(cb => {
+                    cb.onchange = () => {
+                        const list = cb.dataset.perm === 'allows' ? n.permissions.allows : n.permissions.blocks;
+                        if (cb.checked) { if (!list.includes(cb.value)) list.push(cb.value); }
+                        else { const idx = list.indexOf(cb.value); if (idx >= 0) list.splice(idx, 1); }
+                        this._lastPropsNode = null; this.renderProps();
+                    };
+                });
+                this.propsBody.querySelectorAll('.wf-perm-add-btn').forEach(btn => {
+                    btn.onclick = () => addPermCustom(btn.dataset.perm);
+                });
+                this.propsBody.querySelectorAll('.wf-perm-input').forEach(inp => {
+                    inp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addPermCustom(inp.dataset.perm); } };
+                });
+                this.propsBody.querySelectorAll('.wf-perm-chip').forEach(chip => {
+                    chip.onclick = () => {
+                        const prefix = chip.dataset.perm;
+                        const val = chip.dataset.val;
+                        const list = prefix === 'allows' ? n.permissions.allows : n.permissions.blocks;
+                        if (!list.includes(val)) { list.push(val); this._lastPropsNode = null; this.renderProps(); }
+                    };
+                });
+                this.propsBody.querySelectorAll('.wf-tag-x[data-perm-val]').forEach(btn => {
+                    btn.onclick = () => {
+                        const prefix = btn.dataset.perm;
+                        const val = btn.dataset.permVal;
+                        const list = prefix === 'allows' ? n.permissions.allows : n.permissions.blocks;
+                        const idx = list.indexOf(val);
+                        if (idx >= 0) { list.splice(idx, 1); this._lastPropsNode = null; this.renderProps(); }
+                    };
+                });
+                // Produces
+                this.propsBody.querySelector('#wfPropProducesBtn').onclick = () => {
+                    const inp = this.propsBody.querySelector('#wfPropProducesAdd');
+                    const val = inp.value.trim();
+                    if (val && !n.produces.includes(val)) { n.produces.push(val); this.renderProps(); }
+                    inp.value = '';
+                };
+                this.propsBody.querySelectorAll('.wf-tag-x').forEach(btn => {
+                    btn.onclick = () => { n.produces = n.produces.filter(p => p !== btn.dataset.produce); this.renderProps(); };
+                });
+                // Hooks
+                this.propsBody.querySelector('#wfHookAdd').onclick = () => {
+                    const t = this.propsBody.querySelector('#wfHookTiming').value;
+                    const ty = this.propsBody.querySelector('#wfHookType').value;
+                    const v = this.propsBody.querySelector('#wfHookVal').value.trim();
+                    if (v) { n.hooks.push({timing:t, type:ty, value:v}); this.renderProps(); }
+                };
+                this.propsBody.querySelectorAll('.wf-hook-del').forEach(btn => {
+                    btn.onclick = () => { n.hooks.splice(parseInt(btn.dataset.hookIdx), 1); this.renderProps(); };
+                });
+            }
+
+        } else if (n.type === 'gate') {
+            this.propsTitle.textContent = '🔷 门禁属性';
+            const gc = n.gateConfig || { condition: 'auto', autoDetect: '', manualAdvance: '', expression: '' };
+            if (!n.gateConfig) n.gateConfig = gc;
+            const sel = c => gc.condition === c ? ' active' : '';
+            this.propsBody.innerHTML = `
+                <div class="wf-field"><label>标签</label><input id="wfPropLabel" value="${esc_attr(n.label||'')}" placeholder="门禁名称"></div>
+                <div class="wf-field"><label>触发条件</label>
+                    <div class="wf-radios" id="wfGateCond">
+                        <button data-cond="auto" class="${sel('auto')}">自动</button>
+                        <button data-cond="manual" class="${sel('manual')}">手动</button>
+                        <button data-cond="expression" class="${sel('expression')}">表达式</button>
+                    </div>
+                </div>
+                <div class="wf-field" id="wfGateAuto" style="display:${gc.condition==='auto'?'':'none'}"><label>自动检测规则</label><input id="wfPropAuto" value="${esc_attr(gc.autoDetect||'')}" placeholder="如：CONTEXT.md 存在 → 自动推进"></div>
+                <div class="wf-field" id="wfGateManual" style="display:${gc.condition==='manual'?'':'none'}"><label>手动确认说明</label><input id="wfPropManual" value="${esc_attr(gc.manualAdvance||'')}" placeholder="如：代码审查通过后手动确认"></div>
+                <div class="wf-field" id="wfGateExpr" style="display:${gc.condition==='expression'?'':'none'}"><label>条件表达式</label><textarea id="wfPropExpr" rows="3" placeholder="如：review.score >= 8">${esc(gc.expression||'')}</textarea></div>`;
+
+            // Bind
+            const updateGate = () => {
+                n.label = this.propsBody.querySelector('#wfPropLabel')?.value || n.label;
+                n.gateConfig.autoDetect = this.propsBody.querySelector('#wfPropAuto')?.value || '';
+                n.gateConfig.manualAdvance = this.propsBody.querySelector('#wfPropManual')?.value || '';
+                n.gateConfig.expression = this.propsBody.querySelector('#wfPropExpr')?.value || '';
+                this.renderNodes(); this.updateStatus();
+            };
+            this.propsBody.querySelector('#wfPropLabel').oninput = updateGate;
+            this.propsBody.querySelector('#wfPropAuto')?.addEventListener('input', updateGate);
+            this.propsBody.querySelector('#wfPropManual')?.addEventListener('input', updateGate);
+            this.propsBody.querySelector('#wfPropExpr')?.addEventListener('input', updateGate);
+            this.propsBody.querySelectorAll('#wfGateCond button').forEach(btn => {
+                btn.onclick = () => {
+                    gc.condition = btn.dataset.cond;
+                    // Toggle display only — don't rebuild entire panel
+                    this.propsBody.querySelectorAll('#wfGateCond button').forEach(b => b.classList.toggle('active', b.dataset.cond === gc.condition));
+                    this.propsBody.querySelector('#wfGateAuto').style.display = gc.condition === 'auto' ? '' : 'none';
+                    this.propsBody.querySelector('#wfGateManual').style.display = gc.condition === 'manual' ? '' : 'none';
+                    this.propsBody.querySelector('#wfGateExpr').style.display = gc.condition === 'expression' ? '' : 'none';
+                    // Focus the newly shown input
+                    setTimeout(() => {
+                        const el = gc.condition === 'auto' ? '#wfPropAuto' : gc.condition === 'manual' ? '#wfPropManual' : '#wfPropExpr';
+                        const inp = this.propsBody.querySelector(el);
+                        if (inp) inp.focus();
+                    }, 50);
+                };
+            });
+
+        } else if (n.type === 'hook') {
+            this.propsTitle.textContent = '⚡ 钩子属性';
+            const hc = n.hookConfig || { type: 'shell', timing: 'onEnter', value: '' };
+            if (!n.hookConfig) n.hookConfig = hc;
+            const selT = t => hc.type === t ? ' active' : '';
+            const selM = m => hc.timing === m ? ' active' : '';
+            const agents = (WF._cachedAgents||[]).map(a => `<option value="${esc_attr(a.slug)}"${hc.type==='agent' && hc.value===a.slug?' selected':''}>${esc(a.name||a.slug)}</option>`).join('');
+            this.propsBody.innerHTML = `
+                <div class="wf-field"><label>标签</label><input id="wfPropLabel" value="${esc_attr(n.label||'')}" placeholder="钩子名称"></div>
+                <div class="wf-field"><label>类型</label>
+                    <div class="wf-radios" id="wfHookType">
+                        <button data-type="shell" class="${selT('shell')}">Shell 命令</button>
+                        <button data-type="agent" class="${selT('agent')}">Agent</button>
+                    </div>
+                </div>
+                <div class="wf-field"><label>触发时机</label>
+                    <div class="wf-radios" id="wfHookTiming">
+                        <button data-timing="onEnter" class="${selM('onEnter')}">进入时</button>
+                        <button data-timing="onLeave" class="${selM('onLeave')}">离开时</button>
+                    </div>
+                </div>
+                <div class="wf-field" id="wfHookValShell" style="display:${hc.type==='shell'?'':'none'}"><label>Shell 命令</label><input id="wfPropShell" value="${esc_attr(hc.type==='shell'?hc.value:'')}" placeholder="如：npm run test"></div>
+                <div class="wf-field" id="wfHookValAgent" style="display:${hc.type==='agent'?'':'none'}"><label>选择 Agent</label><select id="wfPropAgent"><option value="">未指定</option>${agents}</select></div>`;
+
+            const updateHook = () => {
+                n.label = this.propsBody.querySelector('#wfPropLabel')?.value || n.label;
+                hc.value = hc.type === 'shell'
+                    ? (this.propsBody.querySelector('#wfPropShell')?.value || '')
+                    : (this.propsBody.querySelector('#wfPropAgent')?.value || '');
+                this.renderNodes(); this.updateStatus();
+            };
+            this.propsBody.querySelector('#wfPropLabel').oninput = updateHook;
+            this.propsBody.querySelector('#wfPropShell')?.addEventListener('input', updateHook);
+            this.propsBody.querySelector('#wfPropAgent')?.addEventListener('change', updateHook);
+            this.propsBody.querySelectorAll('#wfHookType button').forEach(btn => {
+                btn.onclick = () => {
+                    hc.type = btn.dataset.type;
+                    // Toggle display only
+                    this.propsBody.querySelectorAll('#wfHookType button').forEach(b => b.classList.toggle('active', b.dataset.type === hc.type));
+                    const shellEl = this.propsBody.querySelector('#wfHookValShell');
+                    const agentEl = this.propsBody.querySelector('#wfHookValAgent');
+                    if (shellEl) shellEl.style.display = hc.type === 'shell' ? '' : 'none';
+                    if (agentEl) agentEl.style.display = hc.type === 'agent' ? '' : 'none';
+                    // Focus appropriate input
+                    setTimeout(() => {
+                        const el = this.propsBody.querySelector(hc.type === 'shell' ? '#wfPropShell' : '#wfPropAgent');
+                        if (el) el.focus();
+                    }, 50);
+                };
+            });
+            this.propsBody.querySelectorAll('#wfHookTiming button').forEach(btn => {
+                btn.onclick = () => {
+                    hc.timing = btn.dataset.timing;
+                    this.propsBody.querySelectorAll('#wfHookTiming button').forEach(b => b.classList.toggle('active', b.dataset.timing === hc.timing));
+                    updateHook();
+                };
+            });
+        }
+    },
+
+    renderNodes() {
+        let h = '';
+        this.nodes.forEach(n => {
+            const sel = n.id === this.selectedId;
+            const x = n.position.x, y = n.position.y;
+            if (n.type === 'gate') {
+                // Diamond gate: 120x70
+                h += `<g class="wf-node node-gate${sel?' selected':''}" data-node-id="${n.id}" transform="translate(${x},${y})">
+                    <polygon class="node-body" points="60,0 120,35 60,70 0,35"/>
+                    <rect class="node-icon-bg" x="50" y="6" width="20" height="20" rx="4"/>
+                    <text x="60" y="20" font-size="14" text-anchor="middle" fill="var(--color-unknown)">◇</text>
+                    <text class="node-title" x="60" y="45" text-anchor="middle"><title>${esc(n.label||'Gate')}</title>${esc(trunc(n.label||'Gate',5))}</text>
+                    <circle class="node-handle" data-node-id="${n.id}" data-handle="input" cx="0" cy="35" r="8"/>
+                    <circle class="node-handle" data-node-id="${n.id}" data-handle="output" cx="120" cy="35" r="8"/>
+                    <circle class="node-del-btn-circle" data-del="${n.id}" cx="108" cy="5" r="9"/>
+                    <text class="node-del-btn-x" data-del="${n.id}" x="104" y="9" font-size="14" font-weight="700">×</text>
+                </g>`;
+            } else if (n.type === 'hook') {
+                // Hook pill: 140x36
+                h += `<g class="wf-node node-hook${sel?' selected':''}" data-node-id="${n.id}" transform="translate(${x},${y})">
+                    <rect class="node-body" x="0" y="0" width="140" height="36" rx="18"/>
+                    <rect class="node-icon-bg" x="6" y="6" width="24" height="24" rx="12"/>
+                    <text x="18" y="22" font-size="14" text-anchor="middle">⚡</text>
+                    <text class="node-title" x="36" y="23"><title>${esc(n.label||'Hook')}</title>${esc(trunc(n.label||'Hook',12))}</text>
+                    <circle class="node-handle" data-node-id="${n.id}" data-handle="input" cx="0" cy="18" r="7"/>
+                    <circle class="node-handle" data-node-id="${n.id}" data-handle="output" cx="140" cy="18" r="7"/>
+                    <circle class="node-del-btn-circle" data-del="${n.id}" cx="128" cy="5" r="9"/>
+                    <text class="node-del-btn-x" data-del="${n.id}" x="124" y="9" font-size="13" font-weight="700">×</text>
+                </g>`;
+            } else {
+                // Agent node: 200x64, nicer layout
+                h += `<g class="wf-node node-agent${sel?' selected':''}" data-node-id="${n.id}" transform="translate(${x},${y})">
+                    <rect class="node-body" x="0" y="0" width="200" height="64" rx="8"/>
+                    <rect class="node-body-bg" x="0" y="0" width="200" height="64" rx="8"/>
+                    <rect class="node-icon-bg" x="10" y="14" width="36" height="36" rx="6"/>
+                    <text x="28" y="37" font-size="16" text-anchor="middle">🤖</text>
+                    <text class="node-title" x="54" y="24"><title>${esc(n.label||'步骤')}</title>${esc(trunc(n.label||'步骤',8))}</text>
+                    <text class="node-sub" x="54" y="40"><title>${esc(n.agentId||'未指定 Agent')}</title>${esc(trunc(n.agentId||'未指定 Agent',16))}</text>
+                    ${(n.skillIds||[]).length ? `<text class="node-sub" x="54" y="54" fill="var(--color-superpowers)">+${n.skillIds.length} Skills</text>` : ''}
+                    <circle class="node-handle" data-node-id="${n.id}" data-handle="input" cx="0" cy="32" r="8"/>
+                    <circle class="node-handle" data-node-id="${n.id}" data-handle="output" cx="200" cy="32" r="8"/>
+                    <circle class="node-del-btn-circle" data-del="${n.id}" cx="188" cy="4" r="9"/>
+                    <text class="node-del-btn-x" data-del="${n.id}" x="184" y="8" font-size="13" font-weight="700">×</text>
+                    <circle class="node-add-btn-circle" data-node-id="${n.id}" cx="218" cy="32" r="9"/>
+                    <text class="node-add-btn-plus" data-node-id="${n.id}" x="214" y="36" font-size="16" font-weight="700">+</text>
+                </g>`;
+            }
+        });
+        this.nodesGroup.innerHTML = h;
+
+        // Bind delete (×) buttons on nodes
+        this.nodesGroup.querySelectorAll('.node-del-btn-circle, .node-del-btn-x').forEach(el => {
+            el.onclick = (e) => {
+                e.stopPropagation();
+                const nid = el.dataset.del;
+                if (nid) { this.selectedId = nid; this.deleteSelected(); }
+            };
+        });
+
+        // Bind "+" button clicks on nodes
+        this.nodesGroup.querySelectorAll('.node-add-btn-circle').forEach(el => {
+            el.onclick = (e) => {
+                e.stopPropagation();
+                const nodeId = el.dataset.nodeId;
+                const node = this.nodes.find(n => n.id === nodeId);
+                if (node) {
+                    const nx = node.position.x + 280, ny = node.position.y;
+                    this.addNode(this.mode === 'step' ? 'agent' : 'agent', nx, ny, nodeId);
+                }
+            };
+        });
+    },
+
+    renderEdges() {
+        let h = '';
+        this.edges.forEach(e => {
+            const sel = e.id === this.selectedId;
+            const from = this.nodes.find(n => n.id === e.from);
+            const to = this.nodes.find(n => n.id === e.to);
+            if (!from || !to) return;
+            const [x1, y1] = this.getOutputPos(from);
+            const [x2, y2] = this.getInputPos(to);
+            const d = this.bezierPath(x1, y1, x2, y2);
+            h += `<path class="wf-edge-hit" data-edge-id="${e.id}" d="${d}"/><path class="wf-edge${sel?' selected':''}" data-edge-id="${e.id}" d="${d}" marker-end="url(#wfArrow)"/>`;
+        });
+        this.edgesGroup.innerHTML = h;
+    },
+
+    updateEdgesForNode(nodeId) {
+        this.edges.forEach(e => {
+            if (e.from !== nodeId && e.to !== nodeId) return;
+            const from = this.nodes.find(n => n.id === e.from);
+            const to = this.nodes.find(n => n.id === e.to);
+            if (!from || !to) return;
+            const pathEl = this.edgesGroup.querySelector(`[data-edge-id="${e.id}"]`);
+            if (pathEl) {
+                const [x1, y1] = this.getOutputPos(from);
+                const [x2, y2] = this.getInputPos(to);
+                pathEl.setAttribute('d', this.bezierPath(x1, y1, x2, y2));
+            }
+        });
+    },
+
+    renderTempEdge() {
+        if (!this.drawing) { this.tempEdge.style.display = 'none'; return; }
+        const [x1, y1] = this.getOutputPos(this.nodes.find(n => n.id === this.drawing.fromNodeId) || {position:{x:0,y:0}});
+        const rect = this.svg.getBoundingClientRect();
+        const x2 = (this.drawing.mouseX - rect.left - this.panX) / this.zoom;
+        const y2 = (this.drawing.mouseY - rect.top - this.panY) / this.zoom;
+        this.tempEdge.setAttribute('d', this.bezierPath(x1, y1, x2, y2));
+        this.tempEdge.style.display = '';
+    },
+
+    getOutputPos(node) { return [node.position.x + (node.type==='gate'?120:node.type==='hook'?140:200), node.position.y + (node.type==='gate'?35:node.type==='hook'?18:32)]; },
+    getInputPos(node) { return [node.position.x, node.position.y + (node.type==='gate'?35:node.type==='hook'?18:32)]; },
+
+    bezierPath(x1, y1, x2, y2) {
+        const dx = Math.abs(x2 - x1) * 0.5;
+        const cx1 = x1 + dx, cy1 = y1;
+        const cx2 = x2 - dx, cy2 = y2;
+        return `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
+    },
+
+    // --- Node/Edge operations ---
+    addNode(type, x, y, fromNodeId) {
+        const id = 'n' + (this.nextId++);
+        const node = { id, type, label: '新步骤', position: {x, y} };
+        if (type === 'agent') {
+            node.label = '新步骤';
+            node.agentId = null;
+            node.skillIds = [];
+            if (this.mode === 'step') { node.permissions = {allows:[],blocks:[]}; node.produces = []; }
+            node.hooks = [];
+        } else if (type === 'gate') {
+            node.label = '门禁';
+            node.gateConfig = { condition: 'auto', autoDetect: '', manualAdvance: '', expression: '' };
+        } else if (type === 'hook') {
+            node.label = '钩子';
+            node.hookConfig = { type: 'shell', timing: 'onEnter', value: '' };
+        }
+        this.nodes.push(node);
+        if (fromNodeId) {
+            this.edges.push({
+                id: 'e' + (this.nextId++),
+                from: fromNodeId, to: id,
+                condition: this.mode === 'auto' ? 'auto' : 'manual'
+            });
+        }
+        this.selectedId = id;
+        this.pushSnapshot();
+        this.render();
+    },
+
+    deleteSelected() {
+        if (!this.selectedId) return;
+        const isNode = this.nodes.some(n => n.id === this.selectedId);
+        if (isNode) {
+            this.nodes = this.nodes.filter(n => n.id !== this.selectedId);
+            this.edges = this.edges.filter(e => e.from !== this.selectedId && e.to !== this.selectedId);
+        } else {
+            this.edges = this.edges.filter(e => e.id !== this.selectedId);
+        }
+        this.selectedId = null;
+        this._lastPropsNode = null;
+        this.pushSnapshot();
+        this.render();
+    },
+
+    filterSkillList() {
+        const searchEl = this.propsBody?.querySelector('#wfSkillSearch');
+        const listEl = this.propsBody?.querySelector('#wfSkillList');
+        if (!searchEl || !listEl) return;
+        const q = searchEl.value.toLowerCase();
+        listEl.querySelectorAll('.wf-skill-check').forEach(el => {
+            el.style.display = !q || el.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+    },
+
+    // --- Undo/Redo ---
+    pushSnapshot() {
+        const snap = JSON.stringify({nodes: this.nodes, edges: this.edges});
+        this.undoStack.push(snap);
+        if (this.undoStack.length > this.maxUndo) this.undoStack.shift();
+        this.redoStack = [];
+        this.updateStatus();
+    },
+
+    isDirty() { return this.undoStack.length > 1; },
+
+    markClean() {
+        // Reset undo stack to just the current saved state
+        const snap = JSON.stringify({nodes: this.nodes, edges: this.edges});
+        this.undoStack = [snap];
+        this.redoStack = [];
+        this.updateStatus();
+    },
+
+    undo() {
+        if (this.undoStack.length <= 1) return;
+        this.redoStack.push(this.undoStack.pop());
+        this.restoreSnapshot(this.undoStack[this.undoStack.length - 1]);
+    },
+
+    redo() {
+        if (!this.redoStack.length) return;
+        const snap = this.redoStack.pop();
+        this.undoStack.push(snap);
+        this.restoreSnapshot(snap);
+    },
+
+    restoreSnapshot(snap) {
+        try {
+            const data = JSON.parse(snap);
+            this.nodes = data.nodes;
+            this.edges = data.edges;
+            this.selectedId = null;
+            this._lastPropsNode = null;
+            this.render();
+        } catch(e) {
+            this.undoStack = []; this.redoStack = [];
+            showToast('撤销数据损坏，已重置', 'error');
+        }
+    },
+
+    // --- Status ---
+    updateStatus() {
+        const el = this.canvasWrap.querySelector('#wfStatus');
+        if (!el) return;
+        const dirty = this.isDirty();
+        el.innerHTML = `${this.nodes.length} 节点 &middot; ${this.edges.length} 连线${dirty?' <span class="unsaved">● 未保存</span>':''}`;
+    },
+
+    // --- Serialization ---
+    toJSON() {
+        return {
+            slug: this.slug,
+            name: this.wfName,
+            description: this.description,
+            mode: this.mode,
+            nodes: this.nodes,
+            edges: this.edges
+        };
+    },
+
+    destroy() {
+        if (this._abort) { this._abort.abort(); this._abort = null; }
+        this.nodes = []; this.edges = []; this.selectedId = null;
+        this.undoStack = []; this.redoStack = [];
+        this.svg = null; this.viewport = null; this.edgesGroup = null; this.nodesGroup = null;
+        this.dragging = null; this.drawing = null; this.panning = null;
+        if (this.canvasWrap) this.canvasWrap.innerHTML = '';
+    }
+};
+
+// Helper: esc for attributes (already defined above, reuse esc_attr)
+// esc_js already defined above
+
+async function newWorkflow() {
+    const name = prompt('工作流名称：');
+    if (!name || !name.trim()) return;
+    const mode = confirm('使用 Step 阶段门禁模式？\n确定=Step，取消=Auto') ? 'step' : 'auto';
+    try {
+        const r = await fetch(`${API}/api/workflows/create`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: name.trim(), mode})
+        });
+        const data = await r.json();
+        showToast(data.message, data.success?'success':'error');
+        if (data.success) {
+            state.type = 'workflow';
+            await Promise.all([loadItems(), loadStats()]);
+        }
+    } catch(e) { showToast('创建失败', 'error'); }
+}
+
+// --- Workflow integration ---
+function initWorkflowEditor(item) {
+    let data;
+    try {
+        data = JSON.parse(item.raw_content);
+    } catch(e) {
+        showToast('工作流 JSON 解析失败', 'error');
+        return;
+    }
+
+    // Convert v1 format to v2 if needed
+    if (!data.nodes) {
+        data = convertV1ToV2(data);
+    }
+
+    const panel = $('#detailPanel');
+    panel.classList.add('wf-active');
+    WF.init(panel, data);
+
+    // Fullscreen toggle
+    const btnFs = $('#btnWfFullscreen');
+    if (btnFs) {
+        btnFs.onclick = () => {
+            const sidebar = $('#sidebar'), list = $('#listPanel'), detail = $('#detailPanel');
+            if (detail.style.position === 'fixed') {
+                detail.style.cssText = '';
+                sidebar.style.display = ''; list.style.display = '';
+                btnFs.textContent = '⛶ 展开全屏';
+            } else {
+                sidebar.style.display = 'none'; list.style.display = 'none';
+                detail.style.cssText = 'position:fixed;inset:0;z-index:50;background:var(--bg);padding:16px;overflow:auto';
+                btnFs.textContent = '⛶ 收起';
+                setTimeout(() => WF.fitView(), 100);
+            }
+        };
+    }
+
+    // Save button (inside canvas toolbar)
+    const btnSaveCanvas = panel.querySelector('#btnWfSaveCanvas');
+    if (btnSaveCanvas) {
+        btnSaveCanvas.onclick = async () => {
+            btnSaveCanvas.disabled = true; btnSaveCanvas.textContent = '保存中...';
+            try {
+                const json = WF.toJSON();
+                const r = await fetch(`${API}/api/item/workflows/${encodeURIComponent(item.name)}`, {
+                    method:'PUT', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({content: JSON.stringify(json, null, 2)})
+                });
+                const resp = await r.json();
+                showToast(resp.message, resp.success?'success':'error');
+                if (resp.success) {
+                    item.content_preview = JSON.stringify(json, null, 2);
+                    item.raw_content = JSON.stringify(json, null, 2);
+                    item.description = json.description;
+                    state.selected = item;
+                    WF.markClean();
+                }
+            } catch(e) { showToast('保存失败: '+e.message, 'error'); }
+            btnSaveCanvas.disabled = false; btnSaveCanvas.textContent = '💾 保存';
+        };
+    }
+
+    // Export button (inside canvas toolbar)
+    const btnExportCanvas = panel.querySelector('#btnWfExportCanvas');
+    if (btnExportCanvas) {
+        btnExportCanvas.onclick = () => {
+            window.open(`${API}/api/workflows/${encodeURIComponent(item.name)}/export`, '_blank');
+        };
+    }
+
+    // Copy button (inside canvas toolbar)
+    const btnCopyCanvas = panel.querySelector('#btnWfCopyCanvas');
+    if (btnCopyCanvas) {
+        btnCopyCanvas.onclick = async () => {
+            const r = await fetch(`${API}/api/workflows/${encodeURIComponent(item.name)}/copy`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({})
+            });
+            const data = await r.json();
+            showToast(data.message, data.success?'success':'error');
+            if (data.success) { loadItems(); loadStats(); }
+        };
+    }
+
+    // Delete button (inside canvas toolbar)
+    const btnDelCanvas = panel.querySelector('#btnWfDeleteCanvas');
+    if (btnDelCanvas) {
+        btnDelCanvas.onclick = () => {
+            if (confirm(`确定删除工作流 "${item.name}"？\n此操作不可恢复。`)) {
+                fetch(`${API}/api/workflows/${encodeURIComponent(item.name)}`, {method:'DELETE'})
+                    .then(r => r.json()).then(data => {
+                        showToast(data.message, data.success?'success':'error');
+                        if (data.success) {
+                            panel.innerHTML = '<div class="empty-state"><div class="empty-icon">🗑</div>已删除</div>';
+                            panel.classList.remove('wf-active');
+                            loadItems(); loadStats();
+                        }
+                    }).catch(() => showToast('删除失败', 'error'));
+            }
+        };
+    }
+
+    // Fit view button
+    const btnFv = $('#btnFitView');
+    if (btnFv) btnFv.onclick = () => WF.fitView();
+
+    // Delete button
+    const btnDel = $('#btnWfDelete');
+    if (btnDel) {
+        btnDel.onclick = () => {
+            if (confirm(`确定删除工作流 "${item.name}"？\n此操作不可恢复。`)) {
+                fetch(`${API}/api/workflows/${encodeURIComponent(item.name)}`, {method:'DELETE'})
+                    .then(r => r.json()).then(data => {
+                        showToast(data.message, data.success?'success':'error');
+                        if (data.success) {
+                            $('#detailPanel').innerHTML = '<div class="empty-state"><div class="empty-icon">🗑</div>已删除</div>';
+                            $('#detailPanel').classList.remove('wf-active');
+                            loadItems(); loadStats();
+                        }
+                    }).catch(e => showToast('删除失败', 'error'));
+            }
+        };
+    }
+
+    // Save button
+    const btnSave = $('#btnWfSave');
+    if (btnSave) {
+        btnSave.onclick = async () => {
+            btnSave.disabled = true; btnSave.textContent = '保存中...';
+            try {
+                const json = WF.toJSON();
+                const r = await fetch(`${API}/api/item/workflows/${encodeURIComponent(item.name)}`, {
+                    method:'PUT', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({content: JSON.stringify(json, null, 2)})
+                });
+                const resp = await r.json();
+                showToast(resp.message, resp.success?'success':'error');
+                if (resp.success) {
+                    item.content_preview = JSON.stringify(json, null, 2);
+                    item.raw_content = JSON.stringify(json, null, 2);
+                    item.description = json.description;
+                    state.selected = item;
+                    WF.markClean();
+                }
+            } catch(e) { showToast('保存失败: '+e.message, 'error'); }
+            btnSave.disabled = false; btnSave.textContent = '💾 保存';
+        };
+    }
+}
+
+function convertV1ToV2(data) {
+    const nodes = [], edges = [];
+    const isStep = !!(data.phases && data.phases.length);
+    const items = isStep ? data.phases : (data.steps || []);
+    items.forEach((item, i) => {
+        const id = (item.id || item.name || 'n' + (i+1));
+        nodes.push({
+            id: id,
+            type: (isStep && (item.manualAdvance || item.autoDetect)) ? 'gate' : 'agent',
+            label: item.label || item.description || item.name || 'Step ' + (i+1),
+            position: { x: i * 280, y: 0 },
+            agentId: item.agentSlug || null,
+            skillIds: [],
+            permissions: isStep ? { allows: item.allows||[], blocks: item.blocks||[] } : undefined,
+            produces: item.produces || [],
+            hooks: [],
+            gateConfig: (isStep && (item.manualAdvance || item.autoDetect)) ? { condition: item.manualAdvance ? 'manual' : 'auto', autoDetect: item.autoDetect || '', manualAdvance: item.manualAdvance || '', expression: '' } : undefined
+        });
+        if (i > 0) {
+            const cond = item.manualAdvance ? 'manual' : (item.autoDetect ? 'auto' : 'auto');
+            edges.push({
+                id: 'e' + i,
+                from: items[i-1].id || items[i-1].name || ('n'+i),
+                to: id,
+                condition: cond,
+                autoDetect: item.autoDetect || null,
+                manualAdvance: item.manualAdvance || null
+            });
+        }
+    });
+    return {
+        slug: data.slug || '',
+        name: data.name || '',
+        description: data.description || '',
+        mode: isStep ? 'step' : 'auto',
+        nodes, edges
+    };
+}
+</script>
+</body>
+</html>

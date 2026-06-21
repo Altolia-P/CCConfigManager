@@ -1,0 +1,68 @@
+[project]
+name = "ccconfigmanager"
+version = "2.1.0"
+description = "Claude Code config manager - browse, search, edit, and organize Skills, Agents, Commands, Rules, MCP, Tools, and Workflows"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "anthropic",
+    "pyyaml",
+]
+
+[project.scripts]
+ccpm = "ccconfigmanager.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+# ==============================================================================
+# Pytest configuration
+# ==============================================================================
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+# Fail on any collection warning and treat them as errors for CI
+filterwarnings = [
+    "error",
+    # Allow DeprecationWarning from fastapi/starlette internals that are
+    # outside our control during test provisioning
+    "ignore::DeprecationWarning:fastapi.*:",
+    "ignore::DeprecationWarning:starlette.*:",
+]
+# Verbose output
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-config",
+    "--strict-markers",
+]
+
+# ==============================================================================
+# Coverage configuration
+# ==============================================================================
+[tool.coverage.run]
+source = ["ccconfigmanager"]
+omit = [
+    "*/__pycache__/*",
+    "*/static/*",
+    "*/__main__.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
+
+# Markers
+[tool.pytest.ini_options.markers]
+unit = "Unit tests — isolated function-level tests (no external deps)"
+integration = "Integration tests — API endpoints with patched deps"
+slow = "Slow tests — concurrent execution, large data, or network calls (excluded from CI default)"

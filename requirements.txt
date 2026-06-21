@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+anthropic
+pyyaml
+
+# Testing
+pytest>=7.0
+pytest-cov>=4.0
+httpx
+
+# Packaging
+pyinstaller>=6.0
