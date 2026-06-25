@@ -107,6 +107,7 @@ export function renderProjectSections(): void {
       <span class="project-toolbar-count">${(state as any)._allItems?.length ?? state.items.length} 项</span>
       <span style="flex:1"></span>
       <button class="btn primary" id="btnProjectAddConfigs" style="font-size:11px;padding:4px 12px">📥 添加配置</button>
+      <button class="btn" id="btnProjectImportPack" style="font-size:11px;padding:4px 12px">📦 导入配置包</button>
     </div>`
 
     for (const typeKey of TYPE_ORDER) {
@@ -169,6 +170,7 @@ export function renderProjectSections(): void {
 
   // Bind add-configs button
   document.getElementById('btnProjectAddConfigs')?.addEventListener('click', () => showAddConfigDialog())
+  document.getElementById('btnProjectImportPack')?.addEventListener('click', () => showImportPackDialog())
 
   renderProjectStats()
 
@@ -194,6 +196,30 @@ export function renderProjectStats(): void {
   if (hk && !byType['hook']) parts.push(`Hooks:${hk}`)
   const statusbar = document.getElementById('statusbar')
   if (statusbar) statusbar.innerHTML = parts.join(' &middot; ')
+}
+
+export async function showImportPackDialog(): Promise<void> {
+  if (!state.project) return
+  const packNames = Object.keys(state.packs)
+  if (!packNames.length) { showToast('请先在侧边栏创建配置包', 'error'); return }
+
+  let target: string | null = packNames.length === 1 ? packNames[0] : null
+  if (!target) {
+    target = prompt(`导入哪个配置包到 "${state.project}"？\n${packNames.join(', ')}`, packNames[0])
+    if (!target || !state.packs[target]) return
+  }
+
+  const pack = state.packs[target]
+  const total = (pack.skills || []).length + (pack.agents || []).length + (pack.commands || []).length + (pack.rules || []).length + (pack.mcps || []).length + (pack.tools || []).length + (pack.workflows || []).length
+
+  const btn = document.getElementById('btnProjectImportPack') as HTMLButtonElement | null
+  if (btn) { btn.disabled = true; btn.textContent = '导入中...' }
+  import('../api').then(m => m.importPackToProject(state.project!, target!)).then(result => {
+    if (btn) { btn.disabled = false; btn.textContent = '📦 导入配置包' }
+    if (result.success) {
+      loadProjects().then(() => { renderSidebar(); loadProjectItems() })
+    }
+  })
 }
 
 export async function showAddConfigDialog(): Promise<void> {

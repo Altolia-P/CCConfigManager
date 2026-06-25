@@ -201,7 +201,7 @@ export const WF = {
 
   // --- Undo/Redo ---
   pushSnapshot(): void {
-    const snap = JSON.stringify({ nodes: this.nodes, edges: this.edges, mode: this.mode })
+    const snap = JSON.stringify({ slug: this.slug, name: this.wfName, description: this.description, nodes: this.nodes, edges: this.edges, mode: this.mode })
     this.undoStack.push(snap)
     if (this.undoStack.length > 50) this.undoStack.shift()
     this.redoStack = []
@@ -221,9 +221,10 @@ export const WF = {
 
   undo(): void {
     if (this.undoStack.length <= 1) return
-    const current = JSON.stringify({ nodes: this.nodes, edges: this.edges, mode: this.mode })
+    const current = JSON.stringify({ slug: this.slug, name: this.wfName, description: this.description, nodes: this.nodes, edges: this.edges, mode: this.mode })
     this.redoStack.push(current)
     const prev = JSON.parse(this.undoStack.pop()!)
+    this.slug = prev.slug; this.wfName = prev.name; this.description = prev.description
     this.nodes = prev.nodes; this.edges = prev.edges; this.mode = prev.mode
     this.selectedId = null; this._lastPropsNode = null
     this.render()
@@ -231,9 +232,10 @@ export const WF = {
 
   redo(): void {
     if (!this.redoStack.length) return
-    const current = JSON.stringify({ nodes: this.nodes, edges: this.edges, mode: this.mode })
+    const current = JSON.stringify({ slug: this.slug, name: this.wfName, description: this.description, nodes: this.nodes, edges: this.edges, mode: this.mode })
     this.undoStack.push(current)
     const next = JSON.parse(this.redoStack.pop()!)
+    this.slug = next.slug; this.wfName = next.name; this.description = next.description
     this.nodes = next.nodes; this.edges = next.edges; this.mode = next.mode
     this.selectedId = null; this._lastPropsNode = null
     this.render()

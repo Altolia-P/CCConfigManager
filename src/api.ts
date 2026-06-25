@@ -234,6 +234,21 @@ export async function copyWorkflow(name: string): Promise<boolean> {
   }
 }
 
+export async function importPackToProject(projectName: string, packName: string): Promise<{ success: boolean; message: string; added?: number; skipped?: number }> {
+  try {
+    const r = await fetch(`${API}/api/projects/${encodeURIComponent(projectName)}/import-pack`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pack_name: packName })
+    })
+    const data = await r.json()
+    showToast(data.message, data.success ? 'success' : 'error')
+    return data
+  } catch {
+    showToast('导入失败', 'error')
+    return { success: false, message: '导入失败' }
+  }
+}
+
 export async function importFile(file: File): Promise<{ success: boolean; message: string; type?: string }> {
   const form = new FormData()
   form.append('file', file)

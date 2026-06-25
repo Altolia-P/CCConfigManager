@@ -22,6 +22,14 @@ _client_key: str = ""
 _client_lock = threading.Lock()
 
 
+def _reset() -> None:
+    """Clear the cached Anthropic client (for test isolation)."""
+    global _client, _client_key
+    with _client_lock:
+        _client = None
+        _client_key = ""
+
+
 def _get_client() -> Anthropic:
     global _client, _client_key
     api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")

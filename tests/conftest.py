@@ -129,8 +129,7 @@ def mock_anthropic_client(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test-fake")
     # Clear the module-level client cache so each test gets a fresh mock
     import ccconfigmanager.executor.gate as gate_module
-    gate_module._client = None
-    gate_module._client_key = ""
+    gate_module._reset()
     with patch("ccconfigmanager.executor.gate.Anthropic") as mock_cls:
         mock_instance = MagicMock()
         mock_cls.return_value = mock_instance

@@ -1,59 +1,25 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for CCConfigManager single-file executable."""
 
-import sys
-from pathlib import Path
-
-block_cipher = None
-ROOT = Path(__file__).parent
 
 a = Analysis(
-    [str(ROOT / 'run.py')],
-    pathex=[str(ROOT / 'src')],
+    ['run.py'],
+    pathex=[],
     binaries=[],
-    datas=[
-        (str(ROOT / 'src' / 'ccconfigmanager' / 'static'), 'ccconfigmanager/static'),
-    ],
-    hiddenimports=[
-        # uvicorn submodules loaded dynamically
-        'uvicorn.loops.auto',
-        'uvicorn.loops.asyncio',
-        'uvicorn.protocols.http.auto',
-        'uvicorn.protocols.http.h11_impl',
-        'uvicorn.protocols.websockets.auto',
-        'uvicorn.protocols.websockets.wsproto_impl',
-        'uvicorn.lifespan.on',
-        'uvicorn.lifespan.off',
-        # fastapi / starlette internals
-        'starlette',
-        'starlette.middleware',
-        # anthropic deps
-        'httpx',
-    ],
+    datas=[('src/ccconfigmanager/static', 'ccconfigmanager/static')],
+    hiddenimports=['uvicorn.loops.auto', 'uvicorn.loops.asyncio', 'uvicorn.protocols.http.auto', 'uvicorn.protocols.http.h11_impl', 'uvicorn.protocols.websockets.auto', 'uvicorn.protocols.websockets.wsproto_impl', 'uvicorn.lifespan.on', 'uvicorn.lifespan.off', 'starlette', 'starlette.middleware', 'httpx'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[
-        'tkinter', 'tcl',
-        'matplotlib', 'pandas', 'numpy', 'scipy', 'PIL',
-        'cryptography', 'bcrypt',
-        'pydoc', 'doctest',
-        'unittest', 'test',
-        'sqlite3', 'sqlalchemy',
-    ],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
+    excludes=['tkinter', 'matplotlib', 'pandas', 'numpy', 'PIL'],
     noarchive=False,
+    optimize=0,
 )
-
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
-    a.zipfiles,
     a.datas,
     [],
     name='CCConfigManager',

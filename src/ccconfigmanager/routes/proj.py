@@ -131,6 +131,45 @@ def discover(name: str):
     return {"success": True, "message": f"发现 {total} 项配置（新增 {count}）", "discovered": discovered, "added": count}
 
 
+@router.post("/api/projects/{name}/import-pack")
+def import_pack(name: str, body: dict):
+    """Bulk-add all items from a pack into a project."""
+    pack_name = body.get("pack_name", "")
+    if not pack_name:
+        return {"success": False, "message": "缺少 pack_name"}
+
+    from .. import packs as packs_data
+    all_packs = packs_data.list_all()
+    pack = all_packs.get(pack_name)
+    if not pack:
+        return {"success": False, "message": f"配置包 {pack_name} 不存在"}
+
+    proj = projects_data.get(name)
+    if not proj:
+        return {"success": False, "message": f"项目 {name} 不存在"}
+
+    data = projects_data._load()
+    proj_data = data.get("projects", {}).get(name)
+    if not proj_data:
+        return {"success": False, "message": f"项目 {name} 不存在"}
+
+    added = 0
+    skipped = 0
+    type_keys = ["skills", "agents", "commands", "rules", "mcps", "tools", "workflows"]
+    for key in type_keys:
+        for item_name in pack.get(key, []):
+            if key not in proj_data:
+                proj_data[key] = []
+            if item_name in proj_data[key]:
+                skipped += 1
+                continue
+            proj_data[key].append(item_name)
+            added += 1
+
+    projects_data._save(data)
+    return {"success": True, "message": f"已添加 {added} 项配置（跳过 {skipped} 项已存在）", "added": added, "skipped": skipped}
+
+
 @router.post("/api/copy-to-project")
 def copy_to_project(body: dict):
     project_path = body.get("project_path", "")

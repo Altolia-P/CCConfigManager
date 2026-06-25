@@ -64,7 +64,32 @@ export function renderPackStats(): void {
   const total = (pack.skills || []).length + (pack.agents || []).length + (pack.commands || []).length + (pack.rules || []).length + (pack.mcps || []).length + (pack.tools || []).length + (pack.workflows || []).length
   const statusbar = document.getElementById('statusbar')
   if (statusbar) {
-    statusbar.innerHTML = `📦 ${esc(state.pack)} &middot; ${total} 项 &middot; Skills:${(pack.skills || []).length} Agents:${(pack.agents || []).length} Commands:${(pack.commands || []).length} Rules:${(pack.rules || []).length} &middot; <button class="btn" style="font-size:10px;padding:1px 6px" id="btnExportPack">📤 导出</button>`
+    statusbar.innerHTML = `📦 ${esc(state.pack)} &middot; ${total} 项 &middot; Skills:${(pack.skills || []).length} Agents:${(pack.agents || []).length} Commands:${(pack.commands || []).length} Rules:${(pack.rules || []).length} &middot; <button class="btn" style="font-size:10px;padding:1px 6px" id="btnExportPack">📤 导出</button> <button class="btn primary" style="font-size:10px;padding:1px 6px" id="btnInstallPackToProject">📥 安装到项目</button>`
     document.getElementById('btnExportPack')?.addEventListener('click', () => exportPack(state.pack))
+    document.getElementById('btnInstallPackToProject')?.addEventListener('click', () => showInstallPackDialog())
   }
+}
+
+export function showInstallPackDialog(): void {
+  if (!state.pack) return
+  const projectNames = Object.keys(state.projects)
+  if (!projectNames.length) { showToast('请先在侧边栏创建项目', 'error'); return }
+
+  const pack = state.packs[state.pack]
+  const total = (pack.skills || []).length + (pack.agents || []).length + (pack.commands || []).length + (pack.rules || []).length + (pack.mcps || []).length + (pack.tools || []).length + (pack.workflows || []).length
+
+  let target: string | null = projectNames.length === 1 ? projectNames[0] : null
+  if (!target) {
+    target = prompt(`安装 "${state.pack}" (${total} 项) 到哪个项目？\n${projectNames.join(', ')}`, projectNames[0])
+    if (!target || !state.projects[target]) return
+  }
+
+  const btn = document.getElementById('btnInstallPackToProject') as HTMLButtonElement | null
+  if (btn) { btn.disabled = true; btn.textContent = '安装中...' }
+  import('../api').then(m => m.importPackToProject(target!, state.pack!)).then(result => {
+    if (btn) { btn.disabled = false; btn.textContent = '📥 安装到项目' }
+    if (result.success) {
+      import('../api').then(m => m.loadProjects()).then(() => renderSidebar())
+    }
+  })
 }
