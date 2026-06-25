@@ -35,6 +35,11 @@ def remove_item(name: str, body: dict):
     return packs_data.remove_item(name, body.get("type", ""), body.get("item_name", ""))
 
 
+@router.post("/api/packs/{name}/apply/{project_name}")
+def apply_pack(name: str, project_name: str):
+    return packs_data.apply_to_project(name, project_name)
+
+
 @router.get("/api/packs/{name}/export")
 def export(name: str):
     data = packs_data._load().get("packs", {})

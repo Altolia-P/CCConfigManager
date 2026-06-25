@@ -249,6 +249,18 @@ export async function importPackToProject(projectName: string, packName: string)
   }
 }
 
+export async function applyPackToProject(packName: string, projectName: string): Promise<{ success: boolean; message: string; details?: Record<string, any> }> {
+  try {
+    const r = await fetch(`${API}/api/packs/${encodeURIComponent(packName)}/apply/${encodeURIComponent(projectName)}`, { method: 'POST' })
+    const data = await r.json()
+    showToast(data.message, data.success ? 'success' : 'error')
+    return data
+  } catch {
+    showToast('应用失败', 'error')
+    return { success: false, message: '应用失败' }
+  }
+}
+
 export async function importFile(file: File): Promise<{ success: boolean; message: string; type?: string }> {
   const form = new FormData()
   form.append('file', file)
